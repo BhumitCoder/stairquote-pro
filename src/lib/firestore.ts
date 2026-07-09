@@ -61,8 +61,10 @@ export async function saveClient(
     await updateDoc(doc(fbDb(), "users", uid, "clients", id), rest);
     return id;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, ...clientData } = client;
   const ref = await addDoc(collection(fbDb(), "users", uid, "clients"), {
-    ...client,
+    ...clientData,
     createdAt: Date.now(),
   });
   return ref.id;
@@ -113,8 +115,10 @@ export async function saveQuotation(
     });
     return id;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, ...quoteData } = quote;
   const ref = await addDoc(collection(fbDb(), "users", uid, "quotations"), {
-    ...quote,
+    ...quoteData,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });

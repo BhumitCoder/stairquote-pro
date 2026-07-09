@@ -27,3 +27,13 @@ waitForPort = 8080
 [[ports]]
 localPort = 8080
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+VITE_FIREBASE_API_KEY = "demo-api-key"
+VITE_FIREBASE_APP_ID = "1:000000000000:web:demo000000000000"
+VITE_FIREBASE_AUTH_DOMAIN = "demo-app.firebaseapp.com"
+VITE_FIREBASE_MESSAGING_SENDER_ID = "000000000000"
+VITE_FIREBASE_PROJECT_ID = "demo-app"
+VITE_FIREBASE_STORAGE_BUCKET = "demo-app.appspot.com"

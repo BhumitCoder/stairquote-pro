@@ -83,7 +83,15 @@ function ClientsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="h-5 w-36 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">

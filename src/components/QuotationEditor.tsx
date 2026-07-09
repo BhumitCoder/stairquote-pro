@@ -1,0 +1,738 @@
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
+import {
+  listClients,
+  getSettings,
+  saveQuotation,
+  nextQuoteNumber,
+  deleteQuotation,
+} from "@/lib/firestore";
+import { uploadFile } from "@/lib/storage";
+import { blankItem, recomputeQuotation } from "@/lib/calc";
+import { generateQuotationPdf, downloadBlob } from "@/lib/pdf";
+import type {
+  Client,
+  Quotation,
+  QuoteItem,
+  QuoteStatus,
+  RateMode,
+  MeasureUnit,
+} from "@/lib/types";
+import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { StatusBadge } from "@/components/StatusBadge";
+import { ClientDialog } from "@/routes/_authenticated.clients";
+import { formatINR, formatNum } from "@/lib/format";
+import {
+  Plus,
+  Trash2,
+  Copy,
+  Download,
+  Save,
+  MessageCircle,
+  ImagePlus,
+  ChevronUp,
+  ChevronDown,
+  ArrowLeft,
+} from "lucide-react";
+import { toast } from "sonner";
+
+export function QuotationEditor({ initial, preselectClientId }: { initial?: Quotation; preselectClientId?: string }) {
+  const { user } = useAuth();
+  const nav = useNavigate();
+  const qc = useQueryClient();
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients", user?.uid],
+    queryFn: () => listClients(user!.uid),
+    enabled: !!user,
+  });
+  const { data: settings = DEFAULT_SETTINGS } = useQuery({
+    queryKey: ["settings", user?.uid],
+    queryFn: () => getSettings(user!.uid),
+    enabled: !!user,
+  });
+
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initial ? 4 : 1);
+  const [clientId, setClientId] = useState<string>(initial?.clientId ?? preselectClientId ?? "");
+  const [items, setItems] = useState<QuoteItem[]>(initial?.items ?? [blankItem(1)]);
+  const [discount, setDiscount] = useState(initial?.discount ?? { mode: "percent" as const, value: 0 });
+  const [gstPct, setGstPct] = useState(initial?.gstPercent ?? settings.gstPercent);
+  const [status, setStatus] = useState<QuoteStatus>(initial?.status ?? "Draft");
+  const [date, setDate] = useState<number>(initial?.date ?? Date.now());
+  const [openClientDlg, setOpenClientDlg] = useState(false);
+  const [notes, setNotes] = useState<string>(initial?.notes ?? "");
+
+  useEffect(() => {
+    if (!initial) setGstPct(settings.gstPercent);
+  }, [settings.gstPercent, initial]);
+
+  const client = clients.find((c) => c.id === clientId);
+
+  const computed = useMemo(() => {
+    if (!client) return null;
+    return recomputeQuotation({
+      id: initial?.id ?? "",
+      number: initial?.number ?? "PREVIEW",
+      date,
+      status,
+      clientId,
+      clientSnapshot: client,
+      items,
+      discount,
+      gstPercent: gstPct,
+      notes,
+    });
+  }, [client, items, discount, gstPct, status, date, clientId, initial, notes]);
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      if (!client || !computed) throw new Error("Pick a client");
+      let number = initial?.number;
+      if (!number) number = await nextQuoteNumber(user!.uid, settings.quotePrefix);
+      const q: Omit<Quotation, "id"> & { id?: string } = { ...computed, id: initial?.id, number };
+      const id = await saveQuotation(user!.uid, q);
+      return { ...q, id } as Quotation;
+    },
+    onSuccess: (q) => {
+      toast.success("Saved");
+      qc.invalidateQueries({ queryKey: ["quotations", user?.uid] });
+      qc.invalidateQueries({ queryKey: ["client-quotes", user?.uid, q.clientId] });
+      if (!initial) nav({ to: "/quotations/$id", params: { id: q.id } });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const delMut = useMutation({
+    mutationFn: () => deleteQuotation(user!.uid, initial!.id),
+    onSuccess: () => {
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["quotations", user?.uid] });
+      nav({ to: "/" });
+    },
+  });
+
+  async function handleDownloadPdf() {
+    if (!computed) return toast.error("Pick a client first");
+    try {
+      let q = computed;
+      if (!initial) {
+        const saved = await saveMut.mutateAsync();
+        q = saved;
+      } else {
+        await saveMut.mutateAsync();
+      }
+      const blob = await generateQuotationPdf(q, settings);
+      downloadBlob(blob, `${q.number}.pdf`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function handleWhatsApp() {
+    if (!computed || !client) return;
+    let q = computed;
+    try {
+      if (!initial) q = await saveMut.mutateAsync();
+      else await saveMut.mutateAsync();
+    } catch { /* ignore */ }
+    const blob = await generateQuotationPdf(q, settings);
+    downloadBlob(blob, `${q.number}.pdf`);
+    const phone = (client.phone || "").replace(/\D/g, "");
+    const msg = encodeURIComponent(
+      `Hello ${client.name},\n\nPlease find attached the quotation ${q.number} from ${settings.company.name}. Grand Total: ${formatINR(q.grandTotal)}.\n\nThank you.`,
+    );
+    const wa = phone ? `https://wa.me/${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(wa, "_blank");
+    toast.success("PDF downloaded — attach it in WhatsApp");
+  }
+
+  // ============ STEP UI ============
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="ghost" size="sm" onClick={() => nav({ to: "/" })}>
+          <ArrowLeft className="mr-1 h-4 w-4" /> Back
+        </Button>
+        <div className="flex items-center gap-2">
+          {initial && <StatusBadge status={status} />}
+          {initial && (
+            <Select value={status} onValueChange={(v) => setStatus(v as QuoteStatus)}>
+              <SelectTrigger className="h-9 w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
+
+      <Stepper step={step} onChange={setStep} hasClient={!!client} hasItems={items.length > 0} />
+
+      {step === 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 1 — Select Client</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Select value={clientId} onValueChange={setClientId}>
+              <SelectTrigger className="h-12">
+                <SelectValue placeholder="Choose a client…" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.org ? ` — ${c.org}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={() => setOpenClientDlg(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Add New Client
+            </Button>
+            <ClientDialog
+              open={openClientDlg}
+              onOpenChange={setOpenClientDlg}
+              initial={null}
+              onSaved={(c: Client) => {
+                setOpenClientDlg(false);
+                qc.invalidateQueries({ queryKey: ["clients", user?.uid] });
+                setClientId(c.id);
+              }}
+            />
+            <div className="flex justify-end pt-2">
+              <Button size="lg" className="h-12" disabled={!clientId} onClick={() => setStep(2)}>
+                Next: Add Items
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-3">
+          {items.map((it, idx) => (
+            <ItemEditor
+              key={idx}
+              index={idx}
+              item={it}
+              settings={settings}
+              onChange={(u) => setItems(items.map((x, i) => (i === idx ? u : x)))}
+              onDuplicate={() => {
+                const cp = { ...it, code: `S${String(items.length + 1).padStart(2, "0")}` };
+                setItems([...items, cp]);
+              }}
+              onDelete={() => setItems(items.filter((_, i) => i !== idx))}
+              onMove={(dir) => {
+                const j = idx + dir;
+                if (j < 0 || j >= items.length) return;
+                const arr = [...items];
+                [arr[idx], arr[j]] = [arr[j], arr[idx]];
+                setItems(arr);
+              }}
+              uid={user!.uid}
+            />
+          ))}
+          <Button
+            variant="outline"
+            className="w-full h-12"
+            onClick={() => setItems([...items, blankItem(items.length + 1)])}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Add Another Item
+          </Button>
+          <div className="flex justify-between pt-2">
+            <Button variant="ghost" onClick={() => setStep(1)}>
+              ← Back
+            </Button>
+            <Button size="lg" className="h-12" onClick={() => setStep(3)}>
+              Next: Totals
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && computed && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 3 — Totals</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Discount</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={discount.mode}
+                    onValueChange={(v) => setDiscount({ ...discount, mode: v as "percent" | "amount" })}
+                  >
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percent">%</SelectItem>
+                      <SelectItem value="amount">₹</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    value={discount.value || ""}
+                    onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>GST %</Label>
+                <Input
+                  type="number"
+                  value={gstPct}
+                  onChange={(e) => setGstPct(Number(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Quote Date</Label>
+                <Input
+                  type="date"
+                  value={new Date(date).toISOString().slice(0, 10)}
+                  onChange={(e) => setDate(new Date(e.target.value).getTime())}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <TotalsRow label="Sub Total" value={formatINR(computed.subTotal)} />
+              <TotalsRow label={`Discount`} value={`- ${formatINR(computed.discountAmt)}`} />
+              <TotalsRow label={`GST @ ${gstPct}%`} value={formatINR(computed.gstAmt)} />
+              <div className="mt-2 border-t pt-2">
+                <TotalsRow
+                  label="Grand Total"
+                  value={formatINR(computed.grandTotal)}
+                  highlight
+                />
+              </div>
+              <div className="mt-3 text-xs text-muted-foreground">
+                {computed.totals.itemCount} items • {formatNum(computed.totals.area, 2)} area •{" "}
+                {formatNum(computed.totals.weight, 2)} Kg
+              </div>
+            </div>
+
+            <div>
+              <Label>Notes (internal)</Label>
+              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+
+            <div className="flex justify-between">
+              <Button variant="ghost" onClick={() => setStep(2)}>
+                ← Back
+              </Button>
+              <Button size="lg" className="h-12" onClick={() => setStep(4)}>
+                Review
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 4 && computed && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 4 — Review &amp; Share</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <div className="text-sm text-muted-foreground">Client</div>
+              <div className="font-semibold">{client?.name}</div>
+              {client?.org && <div className="text-sm">{client.org}</div>}
+              <div className="text-xs text-muted-foreground">
+                {[client?.phone, client?.email].filter(Boolean).join(" • ")}
+              </div>
+            </div>
+
+            <div className="rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="p-2 text-left">Item</th>
+                    <th className="p-2 text-right">Qty</th>
+                    <th className="p-2 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {computed.items.map((it, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-2">
+                        <div className="font-medium">
+                          [{it.code}] {it.name || "—"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {[it.location, it.material, it.finish].filter(Boolean).join(" • ")}
+                        </div>
+                      </td>
+                      <td className="p-2 text-right">{it.qty}</td>
+                      <td className="p-2 text-right font-medium">{formatINR(it.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <TotalsRow label="Sub Total" value={formatINR(computed.subTotal)} />
+              <TotalsRow label="Discount" value={`- ${formatINR(computed.discountAmt)}`} />
+              <TotalsRow label={`GST @ ${gstPct}%`} value={formatINR(computed.gstAmt)} />
+              <div className="mt-2 border-t pt-2">
+                <TotalsRow label="Grand Total" value={formatINR(computed.grandTotal)} highlight />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              {initial && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (confirm("Delete this quotation?")) delMut.mutate();
+                  }}
+                >
+                  <Trash2 className="mr-1 h-4 w-4" /> Delete
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+                <Save className="mr-1 h-4 w-4" /> Save Draft
+              </Button>
+              <Button variant="outline" onClick={handleWhatsApp}>
+                <MessageCircle className="mr-1 h-4 w-4" /> Share on WhatsApp
+              </Button>
+              <Button onClick={handleDownloadPdf}>
+                <Download className="mr-1 h-4 w-4" /> Download PDF
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function Stepper({
+  step,
+  onChange,
+  hasClient,
+  hasItems,
+}: {
+  step: number;
+  onChange: (s: 1 | 2 | 3 | 4) => void;
+  hasClient: boolean;
+  hasItems: boolean;
+}) {
+  const steps = [
+    { n: 1, label: "Client", ok: hasClient },
+    { n: 2, label: "Items", ok: hasItems },
+    { n: 3, label: "Totals", ok: true },
+    { n: 4, label: "Review", ok: true },
+  ];
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      {steps.map((s) => (
+        <button
+          key={s.n}
+          onClick={() => onChange(s.n as 1 | 2 | 3 | 4)}
+          className={`rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+            step === s.n
+              ? "bg-primary text-primary-foreground"
+              : s.ok
+                ? "bg-accent text-accent-foreground"
+                : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {s.n}. {s.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TotalsRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between py-1 ${highlight ? "text-lg font-bold text-primary" : ""}`}>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function ItemEditor({
+  index,
+  item,
+  settings,
+  onChange,
+  onDuplicate,
+  onDelete,
+  onMove,
+  uid,
+}: {
+  index: number;
+  item: QuoteItem;
+  settings: typeof DEFAULT_SETTINGS;
+  onChange: (u: QuoteItem) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onMove: (dir: 1 | -1) => void;
+  uid: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const set = <K extends keyof QuoteItem>(k: K, v: QuoteItem[K]) =>
+    onChange({ ...item, [k]: v });
+
+  async function uploadImage(file: File) {
+    setBusy(true);
+    try {
+      const path = `users/${uid}/items/${Date.now()}-${file.name}`;
+      const { url } = await uploadFile(path, file);
+      onChange({ ...item, imageUrl: url, imagePath: path });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const lineAmount =
+    item.rateMode === "lumpsum"
+      ? item.qty * item.rate
+      : item.qty * item.measureValue * item.rate;
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-primary">Item #{index + 1} — {item.code}</div>
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" onClick={() => onMove(-1)}>
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => onMove(1)}>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onDuplicate}>
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onDelete}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <label className="grid h-24 w-24 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-xl border bg-muted">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) uploadImage(f);
+              }}
+            />
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center text-xs text-muted-foreground">
+                <ImagePlus className="h-6 w-6" />
+                <span className="mt-1">{busy ? "…" : "Photo"}</span>
+              </div>
+            )}
+          </label>
+          <div className="grid flex-1 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Type</Label>
+                <Select value={item.name} onValueChange={(v) => set("name", v)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {settings.dropdowns.stairTypes.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Or custom name</Label>
+                <Input value={item.name} onChange={(e) => set("name", e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Location on site</Label>
+              <Input
+                value={item.location || ""}
+                onChange={(e) => set("location", e.target.value)}
+                placeholder="e.g. Ground floor to 1st floor"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div>
+            <Label className="text-xs">Material</Label>
+            <Select value={item.material || ""} onValueChange={(v) => set("material", v)}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="—" />
+              </SelectTrigger>
+              <SelectContent>
+                {settings.dropdowns.materials.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Finish / Color</Label>
+            <Input value={item.finish || ""} onChange={(e) => set("finish", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Weight (Kg / unit)</Label>
+            <Input
+              type="number"
+              value={item.weight ?? ""}
+              onChange={(e) => set("weight", Number(e.target.value) || 0)}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Width (mm)</Label>
+            <Input
+              type="number"
+              value={item.width ?? ""}
+              onChange={(e) => set("width", Number(e.target.value) || 0)}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Height (mm)</Label>
+            <Input
+              type="number"
+              value={item.height ?? ""}
+              onChange={(e) => set("height", Number(e.target.value) || 0)}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Steps</Label>
+            <Input
+              type="number"
+              value={item.steps ?? ""}
+              onChange={(e) => set("steps", Number(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-xs">Extra Specifications</Label>
+          <div className="space-y-1.5">
+            {item.specs.map((s, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  value={s}
+                  placeholder='e.g. "Glass: 12mm Toughened"'
+                  onChange={(e) => {
+                    const arr = [...item.specs];
+                    arr[i] = e.target.value;
+                    set("specs", arr);
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => set("specs", item.specs.filter((_, x) => x !== i))}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => set("specs", [...item.specs, ""])}>
+              <Plus className="mr-1 h-4 w-4" /> Add spec
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div>
+            <Label className="text-xs">Qty</Label>
+            <Input
+              type="number"
+              value={item.qty}
+              onChange={(e) => set("qty", Number(e.target.value) || 0)}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Rate Basis</Label>
+            <Select value={item.rateMode} onValueChange={(v) => set("rateMode", v as RateMode)}>
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sqft">₹ / sqft</SelectItem>
+                <SelectItem value="rft">₹ / rft</SelectItem>
+                <SelectItem value="lumpsum">Lump Sum</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {item.rateMode !== "lumpsum" && (
+            <div>
+              <Label className="text-xs">
+                {item.rateMode === "sqft" ? "Sqft / unit" : "Rft / unit"}
+              </Label>
+              <Input
+                type="number"
+                value={item.measureValue || ""}
+                onChange={(e) =>
+                  onChange({
+                    ...item,
+                    measureValue: Number(e.target.value) || 0,
+                    measureUnit: (item.rateMode === "sqft" ? "sqft" : "rft") as MeasureUnit,
+                  })
+                }
+              />
+            </div>
+          )}
+          <div>
+            <Label className="text-xs">Rate (₹)</Label>
+            <Input
+              type="number"
+              value={item.rate || ""}
+              onChange={(e) => set("rate", Number(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2">
+          <span className="text-sm font-medium">Amount</span>
+          <span className="text-lg font-bold text-primary">{formatINR(lineAmount)}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -250,49 +250,81 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
 
       {/* Loading notice */}
       {settings.loadingNotice && (
-        <div className="px-4 pt-5 sm:px-6">
-          <div style={{ color: RED }} className="bg-red-50 px-3 py-2 text-[11px] font-bold">
-            * {settings.loadingNotice}
+        <div className="px-4 pt-6 sm:px-6">
+          <div
+            style={{ borderLeftColor: RED }}
+            className="border-l-4 bg-red-50 px-3.5 py-2.5 text-[11px] font-bold text-red-700"
+          >
+            {settings.loadingNotice}
           </div>
         </div>
       )}
 
-      {/* Payment terms */}
+      {/* Payment terms — soft panel, one bulleted row per line */}
       {settings.paymentTerms && (
-        <div className="px-4 pt-5 sm:px-6">
+        <div className="px-4 pt-6 sm:px-6">
           <SectionHeading>Payment Terms</SectionHeading>
-          <div className="mt-1.5 whitespace-pre-line text-[12px] text-zinc-700">
-            {settings.paymentTerms}
+          <div className="mt-2.5 space-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700">
+            {settings.paymentTerms
+              .split("\n")
+              .map((l) => l.trim())
+              .filter(Boolean)
+              .map((line, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span
+                    style={{ background: RED }}
+                    className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
+                  />
+                  <span>{line}</span>
+                </div>
+              ))}
           </div>
         </div>
       )}
 
-      {/* Terms & conditions */}
-      {settings.termsAndConditions.length > 0 && (
-        <div className="px-4 pt-5 sm:px-6">
+      {/* Terms & conditions — two columns, red numbering */}
+      {settings.termsAndConditions.some((t) => t.trim()) && (
+        <div className="px-4 pt-6 sm:px-6">
           <SectionHeading>Terms &amp; Conditions</SectionHeading>
-          <ol className="mt-1.5 space-y-0.5 text-[12px] text-zinc-700">
-            {settings.termsAndConditions.map((t, i) => (
-              <li key={i}>
-                {i + 1}. {t}
-              </li>
-            ))}
+          <ol className="mt-2.5 grid gap-x-8 gap-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700 sm:grid-cols-2">
+            {settings.termsAndConditions
+              .filter((t) => t.trim())
+              .map((t, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span
+                    style={{ background: RED }}
+                    className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
+                  />
+                  <span>{t}</span>
+                </li>
+              ))}
           </ol>
         </div>
       )}
 
       {/* Acceptance + signatures */}
-      <div className="px-4 pt-6 sm:px-6">
+      <div className="px-4 pt-7 sm:px-6">
         <p className="text-[11px] italic text-zinc-500">
           I hereby accept the estimate as per above mentioned price and specifications.
         </p>
-        <div className="mt-10 flex items-end justify-between gap-6 pb-6 text-[11px]">
+        <div className="mt-6 flex items-end justify-between gap-6 text-[11px]">
           <div>
-            <div className="w-36 border-t border-zinc-400 pt-1 sm:w-44">Authorized Signatory</div>
+            <div className="h-10" />
+            <div className="w-40 border-t border-zinc-400 pt-1 text-zinc-500 sm:w-48">
+              Customer Signature &amp; Date
+            </div>
           </div>
           <div className="text-right">
-            <div className="w-36 border-t border-zinc-400 pt-1 sm:w-44">Signature of Customer</div>
+            <div className="mb-6 text-[11px] font-bold text-zinc-800">
+              For {settings.company.name}
+            </div>
+            <div className="w-40 border-t border-zinc-400 pt-1 text-zinc-500 sm:w-48">
+              Authorized Signatory
+            </div>
           </div>
+        </div>
+        <div style={{ color: RED }} className="pb-6 pt-6 text-center text-[11px] italic">
+          Thank you for choosing {settings.company.name}!
         </div>
       </div>
 
@@ -311,11 +343,11 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{ borderColor: RED }}
-      className="inline-block border-b-2 pb-0.5 text-[12px] font-bold uppercase tracking-wide text-zinc-900"
-    >
-      {children}
+    <div className="border-b border-zinc-200 pb-1.5">
+      <div className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-zinc-900">
+        <span style={{ background: RED }} className="h-3.5 w-1 shrink-0 rounded-sm" />
+        {children}
+      </div>
     </div>
   );
 }

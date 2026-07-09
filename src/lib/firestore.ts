@@ -17,7 +17,6 @@ import {
 import { fbDb } from "./firebase";
 import type { AppSettings, Client, Quotation } from "./types";
 import { DEFAULT_SETTINGS } from "./settings-defaults";
-import { todayKey } from "./format";
 
 function userRoot(uid: string) {
   return doc(fbDb(), "users", uid);
@@ -153,16 +152,25 @@ export async function deleteQuotation(uid: string, id: string): Promise<void> {
   await deleteDoc(doc(fbDb(), "users", uid, "quotations", id));
 }
 
-// Sequential quote number per day using a transaction.
+// Global running quote number (Q-00001, Q-00002, …) using a transaction.
 export async function nextQuoteNumber(uid: string, prefix = "Q"): Promise<string> {
-  const key = todayKey();
-  const counterRef = doc(fbDb(), "users", uid, "counters", key);
+  const counterRef = doc(fbDb(), "users", uid, "counters", "quotations");
+
+  // First use: seed the counter from the existing quote count so numbering
+  // continues instead of restarting at 1.
+  let seed = 0;
+  const existing = await getDoc(counterRef);
+  if (!existing.exists()) {
+    const snap = await getDocs(collection(fbDb(), "users", uid, "quotations"));
+    seed = snap.size;
+  }
+
   const seq = await runTransaction(fbDb(), async (tx) => {
     const snap = await tx.get(counterRef);
-    const current = snap.exists() ? (snap.data().seq as number) : 0;
+    const current = snap.exists() ? (snap.data().seq as number) : seed;
     const next = current + 1;
     tx.set(counterRef, { seq: next }, { merge: true });
     return next;
   });
-  return `${key}-${prefix}-${String(seq).padStart(5, "0")}`;
+  return `${prefix}-${String(seq).padStart(5, "0")}`;
 }

@@ -37,9 +37,9 @@ function pdfNum(n: number, digits = 2): string {
     .replace(/[^\x20-\x7E,. ]/g, "");
 }
 
-/** Strip non-ASCII characters from any user-supplied string before putting in PDF */
+/** Strip non-ASCII characters (but keep line breaks) from any user-supplied string */
 function safe(s: string | undefined | null): string {
-  return (s ?? "").replace(/[^\x20-\x7E]/g, (ch) => {
+  return (s ?? "").replace(/[^\x20-\x7E\n]/g, (ch) => {
     // Replace common Unicode punctuation with ASCII equivalents
     const map: Record<string, string> = {
       "\u2014": "--", // em dash
@@ -283,7 +283,10 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     startY: titleY + 5,
     head: [["#", "Description", "Width", "Height", "Qty", "Sqft/Rft", "Rate", "Amount"]],
     body: body as never,
-    margin: { left: margin, right: margin },
+    // Never slice an item row in half — move the whole row to the next page.
+    rowPageBreak: "avoid",
+    // Keep table rows clear of the 10mm footer bar.
+    margin: { left: margin, right: margin, bottom: 8 },
     styles: {
       font: "helvetica",
       fontSize: 8.5,
@@ -389,7 +392,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
         pdfNum(quote.subTotal, 2),
       ],
     ],
-    margin: { left: margin, right: margin },
+    margin: { left: margin, right: margin, bottom: 8 },
     styles: {
       font: "helvetica",
       fontSize: 9,
@@ -415,7 +418,17 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   y = (doc as JsPdfWithAt).lastAutoTable?.finalY ?? y + 8;
   y += 5;
 
+  // Break to a new page only when a block genuinely doesn't fit above the
+  // footer bar (which starts at pageH - 10) — otherwise keep filling the page.
+  const ensureSpace = (need: number) => {
+    if (y + need > pageH - 8) {
+      doc.addPage();
+      y = margin + 5;
+    }
+  };
+
   // ── BOTTOM SECTION: Summary left | Totals right ───────────────────────────
+  ensureSpace(38); // exact totals-box height — never split across pages
   const boxTop = y;
   const leftW = contentW * 0.52;
   const rightW2 = contentW * 0.48;
@@ -488,101 +501,205 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
 
   y = Math.max(ly, ty) + 8;
 
-  // ── LOADING NOTICE ────────────────────────────────────────────────────────
-  const ensureSpace = (need: number) => {
-    if (y + need > pageH - 22) {
-      doc.addPage();
-      y = margin + 5;
-    }
+  // Section heading: small red accent bar + title + hairline divider.
+  const sectionHeading = (title: string) => {
+    doc.setFillColor(...RED);
+    doc.rect(margin, y - 3.2, 1.3, 4.4, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...DARK);
+    doc.text(title, margin + 3.8, y);
+    doc.setDrawColor(232, 232, 238);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y + 2.4, margin + contentW, y + 2.4);
+    y += 8;
   };
 
-  ensureSpace(10);
-  doc.setFillColor(255, 243, 243);
-  const noticeText = `* ${safe(settings.loadingNotice)}`;
-  const noticeLines = doc.splitTextToSize(noticeText, contentW - 6);
-  const noticeH = noticeLines.length * 4.5 + 4;
-  doc.rect(margin, y, contentW, noticeH, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...RED);
-  doc.text(noticeLines, margin + 3, y + 5);
-  y += noticeH + 5;
+  // ── LOADING NOTICE (only when set) ────────────────────────────────────────
+  if (settings.loadingNotice.trim()) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    const noticeLines = doc.splitTextToSize(safe(settings.loadingNotice), contentW - 12);
+    const noticeH = noticeLines.length * 4.5 + 5;
+    ensureSpace(noticeH + 2);
+    doc.setFillColor(255, 243, 243);
+    doc.rect(margin, y, contentW, noticeH, "F");
+    doc.setFillColor(...RED);
+    doc.rect(margin, y, 1.3, noticeH, "F");
+    doc.setTextColor(200, 45, 50);
+    doc.text(noticeLines, margin + 5.5, y + 5.5);
+    y += noticeH + 7;
+  }
 
-  // ── PAYMENT TERMS ─────────────────────────────────────────────────────────
-  ensureSpace(22);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK);
-  doc.text("PAYMENT TERMS", margin, y);
-  doc.setDrawColor(...RED);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y + 1, margin + 33, y + 1);
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.2);
-  doc.setTextColor(...TEXT);
-  const ptLines = doc.splitTextToSize(safe(settings.paymentTerms), contentW);
-  ensureSpace(ptLines.length * 4.2 + 4);
-  doc.text(ptLines, margin, y);
-  y += ptLines.length * 4.2 + 5;
+  // ── PAYMENT TERMS — soft panel, one bulleted row per line ─────────────────
+  if (settings.paymentTerms.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.4);
+    const ptRows = safe(settings.paymentTerms)
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((r) => doc.splitTextToSize(r, contentW - 16) as string[]);
+    const rowHs = ptRows.map((w) => w.length * 4.2 + 2.8);
+    const panelH = rowHs.reduce((a, b) => a + b, 0) + 3.5;
 
-  // ── TERMS & CONDITIONS ────────────────────────────────────────────────────
-  ensureSpace(20);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK);
-  doc.text("TERMS & CONDITIONS", margin, y);
-  doc.setDrawColor(...RED);
-  doc.line(margin, y + 1, margin + 43, y + 1);
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.2);
-  doc.setTextColor(...TEXT);
-  settings.termsAndConditions.forEach((t, i) => {
-    const wrapped = doc.splitTextToSize(`${i + 1}. ${safe(t)}`, contentW);
-    ensureSpace(wrapped.length * 4.2 + 2);
-    doc.text(wrapped, margin, y);
-    y += wrapped.length * 4.2 + 1.5;
-  });
-  y += 4;
+    if (panelH <= pageH - margin - 24) {
+      // Keep heading + panel together on one page.
+      ensureSpace(8 + panelH + 4);
+      sectionHeading("PAYMENT TERMS");
+      doc.setFillColor(...LIGHT_GRAY);
+      doc.roundedRect(margin, y, contentW, panelH, 1.6, 1.6, "F");
+      let ry = y + 6;
+      for (let i = 0; i < ptRows.length; i++) {
+        doc.setFillColor(...RED);
+        doc.circle(margin + 4.5, ry - 1.1, 0.8, "F");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.4);
+        doc.setTextColor(...TEXT);
+        doc.text(ptRows[i], margin + 8.5, ry);
+        ry += rowHs[i];
+      }
+      y += panelH + 7;
+    } else {
+      // Extremely long terms — flow line by line, never cutting anything.
+      ensureSpace(8 + 10);
+      sectionHeading("PAYMENT TERMS");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.4);
+      doc.setTextColor(...TEXT);
+      for (const row of ptRows) {
+        for (const line of row) {
+          ensureSpace(5);
+          doc.text(line, margin + 3, y);
+          y += 4.2;
+        }
+        y += 1;
+      }
+      y += 6;
+    }
+  }
+
+  // ── TERMS & CONDITIONS — two balanced columns when they fit ───────────────
+  const terms = settings.termsAndConditions.filter((t) => t.trim());
+  if (terms.length > 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.2);
+    const colGap = 8;
+    const panelPad = 4.5; // inner padding of the grey panel, like Payment Terms
+    const colW = (contentW - panelPad * 2 - colGap) / 2;
+    const wrapped = terms.map((t) => doc.splitTextToSize(safe(t), colW - 7) as string[]);
+    const itemHs = wrapped.map((w) => w.length * 4 + 2.6);
+    const totalH = itemHs.reduce((a, b) => a + b, 0);
+
+    // Split items into two columns as evenly as possible (keeping order).
+    let acc = 0;
+    let splitIdx = terms.length;
+    for (let i = 0; i < terms.length; i++) {
+      if (acc + itemHs[i] / 2 >= totalH / 2) {
+        splitIdx = i;
+        break;
+      }
+      acc += itemHs[i];
+    }
+    const leftH = itemHs.slice(0, splitIdx).reduce((a, b) => a + b, 0);
+    const rightH = itemHs.slice(splitIdx).reduce((a, b) => a + b, 0);
+    const colsH = Math.max(leftH, rightH);
+
+    const drawTerm = (idx: number, x: number, ty2: number): number => {
+      doc.setFillColor(...RED);
+      doc.circle(x + 1, ty2 - 1.1, 0.8, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.2);
+      doc.setTextColor(...TEXT);
+      doc.text(wrapped[idx], x + 4.5, ty2);
+      return itemHs[idx];
+    };
+
+    if (colsH <= pageH - margin - 24) {
+      // Two-column layout inside a soft grey panel, kept together with its heading.
+      const panelH = colsH + 7.5;
+      ensureSpace(8 + panelH + 4);
+      sectionHeading("TERMS & CONDITIONS");
+      doc.setFillColor(...LIGHT_GRAY);
+      doc.roundedRect(margin, y, contentW, panelH, 1.6, 1.6, "F");
+      let cy2 = y + 6;
+      for (let i = 0; i < splitIdx; i++) cy2 += drawTerm(i, margin + panelPad, cy2);
+      cy2 = y + 6;
+      for (let i = splitIdx; i < terms.length; i++)
+        cy2 += drawTerm(i, margin + panelPad + colW + colGap, cy2);
+      y += panelH + 7;
+    } else {
+      // Very long list — single column, item by item, nothing ever cut.
+      ensureSpace(8 + itemHs[0] + 2);
+      sectionHeading("TERMS & CONDITIONS");
+      let cy2 = y + 2;
+      for (let i = 0; i < terms.length; i++) {
+        if (cy2 + itemHs[i] > pageH - 8) {
+          doc.addPage();
+          cy2 = margin + 7;
+        }
+        cy2 += drawTerm(i, margin, cy2);
+      }
+      y = cy2 + 5;
+    }
+  }
 
   // ── ACCEPTANCE + SIGNATURES ───────────────────────────────────────────────
-  ensureSpace(28);
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8.5);
-  doc.setTextColor(90, 90, 110);
   const accept = doc.splitTextToSize(
     "I hereby accept the estimate as per above mentioned price and specifications.",
     contentW,
-  );
+  ) as string[];
+  // Exact block height: acceptance + gap + "For company" + line + label + thank-you.
+  ensureSpace(accept.length * 4.5 + 26 + 10);
+  doc.setTextColor(110, 110, 130);
   doc.text(accept, margin, y);
-  y += accept.length * 4.5 + 10;
+  y += accept.length * 4.5 + 14;
 
+  const sigW = 62;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...DARK);
+  doc.text(`For ${safe(settings.company.name)}`, pageW - margin, y - 2, { align: "right" });
+
+  y += 8;
   doc.setDrawColor(...DARK_MID);
   doc.setLineWidth(0.4);
-  doc.line(margin, y, margin + 55, y);
-  doc.line(pageW - margin - 55, y, pageW - margin, y);
+  doc.line(margin, y, margin + sigW, y);
+  doc.line(pageW - margin - sigW, y, pageW - margin, y);
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 140);
+  doc.text("Customer Signature & Date", margin, y + 4.2);
+  doc.text("Authorized Signatory", pageW - margin, y + 4.2, { align: "right" });
+  y += 12;
+
+  // Thank-you line
+  doc.setFont("helvetica", "italic");
   doc.setFontSize(8.5);
-  doc.setTextColor(...TEXT);
-  doc.text("Authorized Signatory", margin, y + 4.5);
-  doc.text("Signature of Customer", pageW - margin, y + 4.5, { align: "right" });
+  doc.setTextColor(...RED);
+  doc.text(`Thank you for choosing ${safe(settings.company.name)}!`, pageW / 2, y, {
+    align: "center",
+  });
 
   // ── PAGE FOOTER ────────────────────────────────────────────────────────────
   const total = doc.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
 
-    // Footer bar
+    // Footer bar (slim)
     doc.setFillColor(...DARK);
-    doc.rect(0, pageH - 10, pageW, 10, "F");
+    doc.rect(0, pageH - 6, pageW, 6, "F");
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(180, 185, 210);
-    doc.text(safe(quote.number), margin, pageH - 3.5);
-    doc.text(safe(settings.company.name), pageW / 2, pageH - 3.5, { align: "center" });
-    doc.text(`Page ${i} of ${total}`, pageW - margin, pageH - 3.5, { align: "right" });
+    // Baseline chosen so 7pt text sits optically centered in the 6mm bar.
+    const footY = pageH - 1.8;
+    doc.text(safe(quote.number), margin, footY);
+    doc.text(safe(settings.company.name), pageW / 2, footY, { align: "center" });
+    doc.text(`Page ${i} of ${total}`, pageW - margin, footY, { align: "right" });
   }
 
   return doc.output("blob");

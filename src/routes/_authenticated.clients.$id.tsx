@@ -23,6 +23,14 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   formatINR,
   formatDate,
   isToday,
@@ -253,43 +261,59 @@ function ClientProfile() {
               No quotations match your search.
             </div>
           ) : (
-            <ul className="divide-y">
-              {filteredQuotes.map((q) => (
-                <li key={q.id} className="flex items-center gap-3 p-4">
-                  <Link
-                    to="/quotations/$id"
-                    params={{ id: q.id }}
-                    className="min-w-0 flex-1 hover:underline"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{q.number}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{formatDate(q.date)}</div>
-                  </Link>
-                  <div className="text-right font-semibold">{formatINR(q.grandTotal)}</div>
-                  <Select
-                    value={q.status}
-                    disabled={statusMut.isPending}
-                    onValueChange={(v) =>
-                      statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
-                    }
-                  >
-                    <SelectTrigger className="h-8 w-[110px] shrink-0">
-                      <SelectValue>
-                        <StatusBadge status={q.status} />
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </li>
-              ))}
-            </ul>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quote No.</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="w-[130px]">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredQuotes.map((q) => (
+                  <TableRow key={q.id}>
+                    <TableCell>
+                      <Link
+                        to="/quotations/$id"
+                        params={{ id: q.id }}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {q.number}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
+                    <TableCell className="text-muted-foreground">{q.totals.itemCount}</TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {formatINR(q.grandTotal)}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={q.status}
+                        disabled={statusMut.isPending}
+                        onValueChange={(v) =>
+                          statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[110px] shrink-0">
+                          <SelectValue>
+                            <StatusBadge status={q.status} />
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

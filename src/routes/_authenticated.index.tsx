@@ -4,6 +4,14 @@ import { useAuth } from "@/lib/auth-context";
 import { listQuotations } from "@/lib/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatINR, formatDate } from "@/lib/format";
 import { PlusCircle, FileText, Clock, CheckCircle2, TrendingUp } from "lucide-react";
@@ -119,32 +127,38 @@ function Dashboard() {
               </Button>
             </div>
           ) : (
-            <ul className="divide-y">
-              {recent.map((q) => (
-                <li key={q.id}>
-                  <Link
-                    to="/quotations/$id"
-                    params={{ id: q.id }}
-                    className="flex items-center gap-3 p-4 hover:bg-accent"
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quote No.</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recent.map((q) => (
+                  <TableRow
+                    key={q.id}
+                    className="cursor-pointer"
+                    onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">
-                          {q.clientSnapshot?.name || "—"}
-                        </span>
-                        <StatusBadge status={q.status} />
-                      </div>
-                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {q.number} • {formatDate(q.date)}
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="font-semibold">{formatINR(q.grandTotal)}</div>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                    <TableCell className="font-medium">{q.number}</TableCell>
+                    <TableCell className="max-w-[220px] truncate">
+                      {q.clientSnapshot?.name || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={q.status} />
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {formatINR(q.grandTotal)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

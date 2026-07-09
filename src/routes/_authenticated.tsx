@@ -58,24 +58,14 @@ function SidebarContent({
     <div className="flex h-full flex-col" style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-foreground)" }}>
       {/* Logo */}
       <div
-        className="flex h-16 shrink-0 items-center gap-3 px-5"
+        className="flex h-20 shrink-0 items-center justify-between px-4"
         style={{ borderBottom: "1px solid var(--color-sidebar-border)" }}
       >
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-          <span className="text-base font-bold">V</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold" style={{ color: "var(--color-sidebar-foreground)" }}>
-            Vast Stair
-          </div>
-          <div className="truncate text-[11px]" style={{ color: "var(--color-sidebar-foreground)", opacity: 0.45 }}>
-            Quotation Software
-          </div>
-        </div>
+        <img src="/logo.png" alt="Vast Stair" className="h-10 w-auto object-contain" />
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-auto rounded-md p-1.5 transition-colors hover:bg-white/10"
+            className="rounded-md p-1.5 transition-colors hover:bg-white/10"
             style={{ color: "var(--color-sidebar-foreground)", opacity: 0.6 }}
           >
             <X className="h-4 w-4" />
@@ -226,12 +216,7 @@ function AuthedLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <span className="text-xs font-bold">V</span>
-            </div>
-            <span className="font-semibold">Vast Stair</span>
-          </div>
+          <img src="/logo.png" alt="Vast Stair" className="h-8 w-auto object-contain" style={{ filter: "invert(0)" }} />
         </header>
 
         {/* Scrollable page content */}

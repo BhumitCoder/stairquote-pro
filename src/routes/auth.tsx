@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { AlertCircle, LogIn } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -42,9 +42,12 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
-            <LogIn className="h-7 w-7" />
+        <CardHeader className="text-center pb-2">
+          <div
+            className="mx-auto mb-4 flex items-center justify-center rounded-2xl px-6 py-4"
+            style={{ background: "#151520" }}
+          >
+            <img src="/logo.png" alt="Vast Stair" className="h-14 w-auto object-contain" />
           </div>
           <CardTitle className="text-2xl">Vast Stair Quotations</CardTitle>
           <p className="text-sm text-muted-foreground">Sign in to your account</p>
@@ -55,8 +58,8 @@ function AuthPage() {
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 Firebase is not configured yet. Add your{" "}
-                <code className="font-mono">VITE_FIREBASE_*</code> keys to your{" "}
-                <code>.env</code> file, then reload. See{" "}
+                <code className="font-mono">VITE_FIREBASE_*</code> keys to your <code>.env</code>{" "}
+                file, then reload. See{" "}
                 <Link to="/" className="underline">
                   README-DEPLOY.md
                 </Link>
@@ -93,9 +96,6 @@ function AuthPage() {
               {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Create your owner account in Firebase Console → Authentication → Users.
-          </p>
         </CardContent>
       </Card>
     </div>

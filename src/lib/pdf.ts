@@ -12,10 +12,13 @@ interface ImageCache {
   [url: string]: string | null;
 }
 
+const APP_LOGO_URL = "/logo.png";
+
 async function loadImages(quote: Quotation, settings: AppSettings): Promise<ImageCache> {
   const cache: ImageCache = {};
   const urls = new Set<string>();
   if (settings.company.logoUrl) urls.add(settings.company.logoUrl);
+  urls.add(APP_LOGO_URL); // always load brand logo as fallback
   for (const it of quote.items) if (it.imageUrl) urls.add(it.imageUrl);
   await Promise.all(
     [...urls].map(async (u) => {
@@ -70,11 +73,16 @@ export async function generateQuotationPdf(
   // Right block: logo top-right + client
   const rightX = midX + 3;
   const rightW = pageW - margin - midX - 3;
-  // Logo top-right
-  const logoData = settings.company.logoUrl && images[settings.company.logoUrl];
+  // Logo top-right — use company logo, or fall back to brand logo
+  const logoData =
+    (settings.company.logoUrl && images[settings.company.logoUrl]) ||
+    images[APP_LOGO_URL];
   if (logoData) {
     try {
-      doc.addImage(logoData, "PNG", pageW - margin - 28, margin + 2, 26, 14, undefined, "FAST");
+      // Dark background pill behind the logo
+      doc.setFillColor(21, 21, 32);
+      doc.roundedRect(pageW - margin - 42, margin + 1, 40, 18, 2, 2, "F");
+      doc.addImage(logoData, "PNG", pageW - margin - 41, margin + 2, 38, 16, undefined, "FAST");
     } catch {
       // ignore
     }

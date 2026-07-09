@@ -1,7 +1,8 @@
 import { jsPDF } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
 import type { AppSettings, Quotation } from "./types";
-import { formatNum, formatDate } from "./format";
+import { formatDate } from "./format";
+import { BRAND_TAGLINE } from "./settings-defaults";
 import { urlToDataUrl } from "./storage";
 
 // ─── Brand colours ───────────────────────────────────────────────────────────
@@ -98,9 +99,15 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(...WHITE);
-  doc.text(safe(settings.company.name || "Company Name"), margin, 11);
+  doc.text(safe(settings.company.name || "Company Name"), margin, 10);
 
-  // Address below name (header, left) — one line per comma-separated part
+  // Brand tagline under the name
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...RED);
+  doc.text(safe(BRAND_TAGLINE), margin, 14.5);
+
+  // Address below (header, left) — one line per comma-separated part
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(200, 200, 215);
@@ -110,7 +117,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     .filter(Boolean);
   if (settings.company.website) addressLines.push(safe(settings.company.website));
 
-  let cy = 17;
+  let cy = 19.5;
   for (const line of addressLines.slice(0, 4)) {
     doc.text(line, margin, cy);
     cy += 4.2;

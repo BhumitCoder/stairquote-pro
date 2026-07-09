@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { listClients } from "@/lib/firestore";
+import { BRAND_TAGLINE } from "@/lib/settings-defaults";
 import { isToday } from "@/lib/format";
 import {
   Home,
@@ -103,7 +104,19 @@ function SidebarContent({
         style={{ borderBottom: "1px solid var(--color-sidebar-border)" }}
       >
         {!collapsed && (
-          <img src="/logo.png" alt="Vastu Stair Designer" className="h-10 w-auto object-contain" />
+          <div className="min-w-0">
+            <img
+              src="/logo.png"
+              alt="Vastu Stairs Designer"
+              className="h-9 w-auto object-contain"
+            />
+            <div
+              className="mt-1 truncate text-[9px] italic tracking-wide"
+              style={{ color: "var(--color-sidebar-foreground)", opacity: 0.4 }}
+            >
+              {BRAND_TAGLINE}
+            </div>
+          </div>
         )}
         {onClose && (
           <button

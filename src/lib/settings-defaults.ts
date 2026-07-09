@@ -1,12 +1,18 @@
 import type { AppSettings } from "./types";
 
+// Brand constants — fixed parts of the Vastu Stairs Designer identity
+// (vastustairdesigner.com), used across the app, auth screen and PDF.
+export const BRAND_TAGLINE = "Staircases that define luxury";
+
 export const DEFAULT_SETTINGS: AppSettings = {
   company: {
-    name: "Vastu Stair Designer",
-    address: "",
-    phones: "",
-    email: "",
-    website: "",
+    name: "Vastu Stairs Designer",
+    // Written with exactly 3 commas — the PDF/preview header shows one line per comma part.
+    address:
+      "Shed No. 13 Krishna Compound, Ashwini Kumar Road, Near Bhavani Circle, Surat Gujarat 395008",
+    phones: "+91 88665 44441, +91 98252 90311",
+    email: "info@vastustairdesigner.com",
+    website: "www.vastustairdesigner.com",
     gst: "",
     salesPerson: "",
   },
@@ -29,23 +35,33 @@ export const DEFAULT_SETTINGS: AppSettings = {
   loadingNotice: "LOADING, UNLOADING & TRANSPORTATION EXTRA AS PER ACTUAL.",
   dropdowns: {
     stairTypes: [
-      "Straight Staircase",
+      "Square Staircase",
+      "Round Staircase",
       "Spiral Staircase",
-      "L-Shape Staircase",
-      "U-Shape Staircase",
-      "Floating Staircase",
-      "Railing",
+      "Helical Staircase",
+      "Steel Staircase",
+      "Cantilever Metal Staircase",
+      "Floating / Hanging Staircase",
+      "SS Glass Stair Railing",
+      "Balcony SS Glass Railing",
       "Handrail",
-      "Glass Railing",
+      "SS Swing Gate",
+      "SS Sliding Gate (Automatic)",
+      "SS Safety Gate",
+      "Mild Steel Gate",
+      "Metal Structure Fabrication",
+      "PVD Coated Railing",
+      "Metal Furniture",
       "Custom",
     ],
     materials: [
-      "MS Steel",
+      "Mild Steel (MS)",
       "SS 304",
       "SS 316",
-      "Wood",
-      "Glass + MS",
       "Glass + SS",
+      "Glass + MS",
+      "PVD Coated SS",
+      "Wood",
       "Aluminium",
       "Custom",
     ],

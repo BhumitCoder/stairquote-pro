@@ -1,5 +1,6 @@
 import type { AppSettings, Quotation } from "@/lib/types";
 import { formatINR, formatNum, formatDate } from "@/lib/format";
+import { BRAND_TAGLINE } from "@/lib/settings-defaults";
 
 // On-screen replica of the generated PDF (see lib/pdf.ts) — instant, crisp and
 // mobile-friendly, unlike embedding the PDF blob in an iframe.
@@ -21,6 +22,9 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
           <div className="min-w-0">
             <div className="text-lg font-bold tracking-wide sm:text-xl">
               {settings.company.name || "Company Name"}
+            </div>
+            <div style={{ color: RED }} className="mt-0.5 text-[11px] italic">
+              {BRAND_TAGLINE}
             </div>
             <div className="mt-1 space-y-0.5 text-[11px] text-zinc-300">
               {settings.company.address

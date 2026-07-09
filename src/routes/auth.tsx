@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { BRAND_TAGLINE } from "@/lib/settings-defaults";
 import { toast } from "sonner";
 import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 
@@ -86,7 +87,7 @@ function AuthPage() {
             style={{ background: "#E8484D", opacity: 0.6 }}
           />
 
-          <h1 className="mb-3 text-3xl font-bold tracking-tight text-white">Quotation Software</h1>
+          <h1 className="mb-3 text-3xl font-bold tracking-tight text-white">{BRAND_TAGLINE}</h1>
           <p
             className="max-w-xs text-sm leading-relaxed"
             style={{ color: "rgba(255,255,255,0.45)" }}
@@ -94,6 +95,24 @@ function AuthPage() {
             Create professional stair quotations, manage clients, and generate polished PDFs — all
             in one place.
           </p>
+
+          <div className="mt-8 flex gap-8">
+            {[
+              ["200+", "Projects"],
+              ["50+", "Professionals"],
+              ["Surat", "Gujarat, India"],
+            ].map(([big, small]) => (
+              <div key={small} className="text-center">
+                <div className="text-xl font-bold text-white">{big}</div>
+                <div
+                  className="mt-0.5 text-[11px] uppercase tracking-wider"
+                  style={{ color: "rgba(255,255,255,0.35)" }}
+                >
+                  {small}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Bottom border accent */}

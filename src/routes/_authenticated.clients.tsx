@@ -211,7 +211,6 @@ export function ClientDialog({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent
         className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
-        onOpenAutoFocus={() => setForm(initial ?? { name: "", org: "", phone: "", email: "", address: "", city: "", state: "" })}
       >
         <DialogHeader>
           <DialogTitle>{initial ? "Edit Client" : "Add Client"}</DialogTitle>

@@ -14,6 +14,8 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated.clients'
+import { Route as AuthenticatedQuotationsNewRouteImport } from './routes/_authenticated.quotations.new'
+import { Route as AuthenticatedQuotationsIdRouteImport } from './routes/_authenticated.quotations.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated.clients.$id'
 
 const AuthRoute = AuthRouteImport.update({
@@ -40,6 +42,18 @@ const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedQuotationsNewRoute =
+  AuthenticatedQuotationsNewRouteImport.update({
+    id: '/quotations/new',
+    path: '/quotations/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedQuotationsIdRoute =
+  AuthenticatedQuotationsIdRouteImport.update({
+    id: '/quotations/$id',
+    path: '/quotations/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -52,6 +66,8 @@ export interface FileRoutesByFullPath {
   '/clients': typeof AuthenticatedClientsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
+  '/quotations/$id': typeof AuthenticatedQuotationsIdRoute
+  '/quotations/new': typeof AuthenticatedQuotationsNewRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -59,6 +75,8 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
+  '/quotations/$id': typeof AuthenticatedQuotationsIdRoute
+  '/quotations/new': typeof AuthenticatedQuotationsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +86,28 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
+  '/_authenticated/quotations/$id': typeof AuthenticatedQuotationsIdRoute
+  '/_authenticated/quotations/new': typeof AuthenticatedQuotationsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/clients' | '/settings' | '/clients/$id'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/clients'
+    | '/settings'
+    | '/clients/$id'
+    | '/quotations/$id'
+    | '/quotations/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/clients' | '/settings' | '/' | '/clients/$id'
+  to:
+    | '/auth'
+    | '/clients'
+    | '/settings'
+    | '/'
+    | '/clients/$id'
+    | '/quotations/$id'
+    | '/quotations/new'
   id:
     | '__root__'
     | '/_authenticated'
@@ -82,6 +116,8 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/clients/$id'
+    | '/_authenticated/quotations/$id'
+    | '/_authenticated/quotations/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -126,6 +162,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/quotations/new': {
+      id: '/_authenticated/quotations/new'
+      path: '/quotations/new'
+      fullPath: '/quotations/new'
+      preLoaderRoute: typeof AuthenticatedQuotationsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/quotations/$id': {
+      id: '/_authenticated/quotations/$id'
+      path: '/quotations/$id'
+      fullPath: '/quotations/$id'
+      preLoaderRoute: typeof AuthenticatedQuotationsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/clients/$id': {
       id: '/_authenticated/clients/$id'
       path: '/$id'
@@ -151,12 +201,16 @@ interface AuthenticatedRouteChildren {
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedQuotationsIdRoute: typeof AuthenticatedQuotationsIdRoute
+  AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedQuotationsIdRoute: AuthenticatedQuotationsIdRoute,
+  AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

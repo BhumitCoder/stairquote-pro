@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export function QuotationEditor({ initial }: { initial?: Quotation }) {
+export function QuotationEditor({ initial, preselectClientId }: { initial?: Quotation; preselectClientId?: string }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const qc = useQueryClient();
@@ -67,7 +67,7 @@ export function QuotationEditor({ initial }: { initial?: Quotation }) {
   });
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(initial ? 4 : 1);
-  const [clientId, setClientId] = useState<string>(initial?.clientId ?? "");
+  const [clientId, setClientId] = useState<string>(initial?.clientId ?? preselectClientId ?? "");
   const [items, setItems] = useState<QuoteItem[]>(initial?.items ?? [blankItem(1)]);
   const [discount, setDiscount] = useState(initial?.discount ?? { mode: "percent" as const, value: 0 });
   const [gstPct, setGstPct] = useState(initial?.gstPercent ?? settings.gstPercent);

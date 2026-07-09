@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { listClients } from "@/lib/firestore";
 import { isToday } from "@/lib/format";
-import { Home, Users, PlusCircle, Settings, LogOut, Menu, X, PhoneCall } from "lucide-react";
+import { Home, Users, FileText, PlusCircle, Settings, LogOut, Menu, X, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { User } from "firebase/auth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,6 +25,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { to: "/", label: "Dashboard", icon: Home, exact: true },
   { to: "/clients", label: "Clients", icon: Users },
+  { to: "/quotations", label: "Quotations", icon: FileText },
   { to: "/quotations/new", label: "New Quotation", icon: PlusCircle },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

@@ -10,12 +10,19 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthedLayout,
 });
 
-const navItems = [
+type NavItem = {
+  to: "/" | "/clients" | "/quotations/new" | "/settings";
+  label: string;
+  icon: typeof Home;
+  exact?: boolean;
+  primary?: boolean;
+};
+const navItems: NavItem[] = [
   { to: "/", label: "Home", icon: Home, exact: true },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/quotations/new", label: "New", icon: PlusCircle, primary: true },
   { to: "/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
 function AuthedLayout() {
   const { user, loading, configured, logout } = useAuth();

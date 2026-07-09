@@ -1,4 +1,5 @@
-// Firebase client init — config hardcoded directly.
+// Firebase client init. The web config below is public by design — data access
+// is enforced by Firestore/Storage security rules, not by hiding these values.
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
@@ -14,21 +15,12 @@ const config = {
   measurementId: "G-1TZYLRZXES",
 };
 
-export function isFirebaseConfigured(): boolean {
-  return true;
-}
-
 let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 let _storage: FirebaseStorage | null = null;
 
 function ensureApp(): FirebaseApp {
-  if (!isFirebaseConfigured()) {
-    throw new Error(
-      "Firebase not configured. Add VITE_FIREBASE_* env vars (see .env.example).",
-    );
-  }
   if (_app) return _app;
   _app = getApps()[0] ?? initializeApp(config);
   return _app;

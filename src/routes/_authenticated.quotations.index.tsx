@@ -17,14 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Search,
-  PlusCircle,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-} from "lucide-react";
+import { Search, PlusCircle, FileText, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
@@ -89,7 +82,8 @@ function QuotationsPage() {
         <div>
           <h1 className="text-2xl font-bold sm:text-3xl">Quotations</h1>
           <p className="text-sm text-muted-foreground">
-            {summary.count} quotation{summary.count === 1 ? "" : "s"} · {formatINR(summary.totalValue)} total
+            {summary.count} quotation{summary.count === 1 ? "" : "s"} ·{" "}
+            {formatINR(summary.totalValue)} total
           </p>
         </div>
         <Button size="lg" className="h-12 gap-2" onClick={() => nav({ to: "/quotations/new" })}>
@@ -148,7 +142,9 @@ function QuotationsPage() {
               {quotes.length === 0 ? "No quotations yet." : "No quotations match your search."}
             </p>
             {quotes.length === 0 && (
-              <Button onClick={() => nav({ to: "/quotations/new" })}>Create your first quotation</Button>
+              <Button onClick={() => nav({ to: "/quotations/new" })}>
+                Create your first quotation
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -172,7 +168,9 @@ function QuotationsPage() {
                       <span className="text-xs text-muted-foreground">
                         {q.totals.itemCount} item{q.totals.itemCount === 1 ? "" : "s"}
                       </span>
-                      <span className="text-lg font-bold text-primary">{formatINR(q.grandTotal)}</span>
+                      <span className="text-lg font-bold text-primary">
+                        {formatINR(q.grandTotal)}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -196,12 +194,7 @@ function QuotationsPage() {
                 </Button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(
-                      (p) =>
-                        p === 1 ||
-                        p === totalPages ||
-                        Math.abs(p - currentPage) <= 1,
-                    )
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
                     .map((p, i, arr) => (
                       <span key={p} className="flex items-center">
                         {i > 0 && arr[i - 1] !== p - 1 && (

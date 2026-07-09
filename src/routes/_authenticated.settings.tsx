@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getSettings, saveSettings } from "@/lib/firestore";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, deleteFile } from "@/lib/storage";
 import type { AppSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,9 +57,11 @@ function SettingsPage() {
   async function handleLogoUpload(file: File) {
     setBusy(true);
     try {
+      const oldPath = s.company.logoPath;
       const path = `users/${user!.uid}/logo/${Date.now()}-${file.name}`;
       const { url } = await uploadFile(path, file);
       setS({ ...s, company: { ...s.company, logoUrl: url, logoPath: path } });
+      if (oldPath) void deleteFile(oldPath);
       toast.success("Logo uploaded");
     } catch (e) {
       toast.error((e as Error).message);
@@ -115,7 +117,11 @@ function SettingsPage() {
               <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
                 <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
                   {s.company.logoUrl ? (
-                    <img src={s.company.logoUrl} alt="logo" className="h-full w-full object-contain" />
+                    <img
+                      src={s.company.logoUrl}
+                      alt="logo"
+                      className="h-full w-full object-contain"
+                    />
                   ) : (
                     <ImagePlus className="h-8 w-8 text-muted-foreground" />
                   )}
@@ -143,26 +149,58 @@ function SettingsPage() {
                 </div>
               </div>
               <Field label="Business Name">
-                <Input value={s.company.name} onChange={(e) => setS({ ...s, company: { ...s.company, name: e.target.value } })} />
+                <Input
+                  value={s.company.name}
+                  onChange={(e) => setS({ ...s, company: { ...s.company, name: e.target.value } })}
+                />
               </Field>
               <Field label="Address">
-                <Textarea rows={2} value={s.company.address} onChange={(e) => setS({ ...s, company: { ...s.company, address: e.target.value } })} />
+                <Textarea
+                  rows={2}
+                  value={s.company.address}
+                  onChange={(e) =>
+                    setS({ ...s, company: { ...s.company, address: e.target.value } })
+                  }
+                />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Phone Numbers">
-                  <Input value={s.company.phones} onChange={(e) => setS({ ...s, company: { ...s.company, phones: e.target.value } })} />
+                  <Input
+                    value={s.company.phones}
+                    onChange={(e) =>
+                      setS({ ...s, company: { ...s.company, phones: e.target.value } })
+                    }
+                  />
                 </Field>
                 <Field label="Email">
-                  <Input value={s.company.email} onChange={(e) => setS({ ...s, company: { ...s.company, email: e.target.value } })} />
+                  <Input
+                    value={s.company.email}
+                    onChange={(e) =>
+                      setS({ ...s, company: { ...s.company, email: e.target.value } })
+                    }
+                  />
                 </Field>
                 <Field label="Website">
-                  <Input value={s.company.website} onChange={(e) => setS({ ...s, company: { ...s.company, website: e.target.value } })} />
+                  <Input
+                    value={s.company.website}
+                    onChange={(e) =>
+                      setS({ ...s, company: { ...s.company, website: e.target.value } })
+                    }
+                  />
                 </Field>
                 <Field label="GST Number">
-                  <Input value={s.company.gst} onChange={(e) => setS({ ...s, company: { ...s.company, gst: e.target.value } })} />
+                  <Input
+                    value={s.company.gst}
+                    onChange={(e) => setS({ ...s, company: { ...s.company, gst: e.target.value } })}
+                  />
                 </Field>
                 <Field label="Sales Person">
-                  <Input value={s.company.salesPerson} onChange={(e) => setS({ ...s, company: { ...s.company, salesPerson: e.target.value } })} />
+                  <Input
+                    value={s.company.salesPerson}
+                    onChange={(e) =>
+                      setS({ ...s, company: { ...s.company, salesPerson: e.target.value } })
+                    }
+                  />
                 </Field>
               </div>
             </CardContent>
@@ -181,19 +219,34 @@ function SettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <Field label="Account Name">
-                <Input value={s.bank.accountName} onChange={(e) => setS({ ...s, bank: { ...s.bank, accountName: e.target.value } })} />
+                <Input
+                  value={s.bank.accountName}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, accountName: e.target.value } })}
+                />
               </Field>
               <Field label="Bank Name">
-                <Input value={s.bank.bankName} onChange={(e) => setS({ ...s, bank: { ...s.bank, bankName: e.target.value } })} />
+                <Input
+                  value={s.bank.bankName}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, bankName: e.target.value } })}
+                />
               </Field>
               <Field label="Branch">
-                <Input value={s.bank.branch} onChange={(e) => setS({ ...s, bank: { ...s.bank, branch: e.target.value } })} />
+                <Input
+                  value={s.bank.branch}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, branch: e.target.value } })}
+                />
               </Field>
               <Field label="Account No.">
-                <Input value={s.bank.accountNo} onChange={(e) => setS({ ...s, bank: { ...s.bank, accountNo: e.target.value } })} />
+                <Input
+                  value={s.bank.accountNo}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, accountNo: e.target.value } })}
+                />
               </Field>
               <Field label="IFSC Code">
-                <Input value={s.bank.ifsc} onChange={(e) => setS({ ...s, bank: { ...s.bank, ifsc: e.target.value } })} />
+                <Input
+                  value={s.bank.ifsc}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, ifsc: e.target.value } })}
+                />
               </Field>
             </CardContent>
           </Card>
@@ -206,10 +259,16 @@ function SettingsPage() {
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" /> Payment Terms
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Appears above Terms &amp; Conditions on the PDF.</p>
+                <p className="text-sm text-muted-foreground">
+                  Appears above Terms &amp; Conditions on the PDF.
+                </p>
               </CardHeader>
               <CardContent>
-                <Textarea rows={5} value={s.paymentTerms} onChange={(e) => setS({ ...s, paymentTerms: e.target.value })} />
+                <Textarea
+                  rows={5}
+                  value={s.paymentTerms}
+                  onChange={(e) => setS({ ...s, paymentTerms: e.target.value })}
+                />
               </CardContent>
             </Card>
             <Card>
@@ -217,7 +276,9 @@ function SettingsPage() {
                 <CardTitle className="flex items-center gap-2">
                   <ListChecks className="h-4 w-4 text-primary" /> Terms &amp; Conditions
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Numbered list printed at the bottom of every quotation.</p>
+                <p className="text-sm text-muted-foreground">
+                  Numbered list printed at the bottom of every quotation.
+                </p>
               </CardHeader>
               <CardContent className="space-y-2">
                 {s.termsAndConditions.map((t, i) => (
@@ -257,10 +318,15 @@ function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Loading / Transport Notice</CardTitle>
-                <p className="text-sm text-muted-foreground">Highlighted red notice above payment terms on the PDF.</p>
+                <p className="text-sm text-muted-foreground">
+                  Highlighted red notice above payment terms on the PDF.
+                </p>
               </CardHeader>
               <CardContent>
-                <Input value={s.loadingNotice} onChange={(e) => setS({ ...s, loadingNotice: e.target.value })} />
+                <Input
+                  value={s.loadingNotice}
+                  onChange={(e) => setS({ ...s, loadingNotice: e.target.value })}
+                />
               </CardContent>
             </Card>
           </div>
@@ -292,7 +358,9 @@ function SettingsPage() {
               <CardTitle className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-primary" /> General
               </CardTitle>
-              <p className="text-sm text-muted-foreground">Defaults applied to every new quotation.</p>
+              <p className="text-sm text-muted-foreground">
+                Defaults applied to every new quotation.
+              </p>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <Field label="GST %">
@@ -303,16 +371,24 @@ function SettingsPage() {
                 />
               </Field>
               <Field label="Currency Symbol">
-                <Input value={s.currency} onChange={(e) => setS({ ...s, currency: e.target.value })} />
+                <Input
+                  value={s.currency}
+                  onChange={(e) => setS({ ...s, currency: e.target.value })}
+                />
               </Field>
               <Field label="Quote Number Prefix">
-                <Input value={s.quotePrefix} onChange={(e) => setS({ ...s, quotePrefix: e.target.value })} />
+                <Input
+                  value={s.quotePrefix}
+                  onChange={(e) => setS({ ...s, quotePrefix: e.target.value })}
+                />
               </Field>
               <Field label="Document Title">
                 <select
                   className="h-10 rounded-md border bg-background px-3"
                   value={s.docTitle}
-                  onChange={(e) => setS({ ...s, docTitle: e.target.value as "Estimate" | "Quotation" })}
+                  onChange={(e) =>
+                    setS({ ...s, docTitle: e.target.value as "Estimate" | "Quotation" })
+                  }
                 >
                   <option>Estimate</option>
                   <option>Quotation</option>
@@ -324,12 +400,17 @@ function SettingsPage() {
       </Tabs>
 
       {/* Sticky save bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-4 py-3 backdrop-blur md:left-60 md:px-8">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-4 py-3 backdrop-blur md:left-[var(--sidebar-w)] md:px-8">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <span className="text-xs text-muted-foreground">
             {saveMut.isSuccess ? "All changes saved" : "Remember to save your changes"}
           </span>
-          <Button size="lg" className="h-11 gap-2" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          <Button
+            size="lg"
+            className="h-11 gap-2"
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending}
+          >
             <Save className="h-4 w-4" />
             {saveMut.isPending ? "Saving…" : "Save Changes"}
           </Button>

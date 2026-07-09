@@ -7,12 +7,12 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   orderBy,
   runTransaction,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import { fbDb } from "./firebase";
 import type { AppSettings, Client, Quotation } from "./types";
@@ -23,25 +23,53 @@ function userRoot(uid: string) {
   return doc(fbDb(), "users", uid);
 }
 
+// Firestore rejects `undefined` field values outright, so writes must never contain them.
+function pruneUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => pruneUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) out[k] = pruneUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+// For updates, an `undefined` top-level field means "remove it" (e.g. clearing a callback date).
+function toUpdatePayload(data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) {
+    out[k] = v === undefined ? deleteField() : pruneUndefined(v);
+  }
+  return out;
+}
+
 // ============ Settings ============
 export async function getSettings(uid: string): Promise<AppSettings> {
   const snap = await getDoc(doc(fbDb(), "users", uid, "meta", "settings"));
   if (!snap.exists()) return DEFAULT_SETTINGS;
-  return { ...DEFAULT_SETTINGS, ...(snap.data() as AppSettings) };
+  const data = snap.data() as Partial<AppSettings>;
+  return {
+    ...DEFAULT_SETTINGS,
+    ...data,
+    company: { ...DEFAULT_SETTINGS.company, ...data.company },
+    bank: { ...DEFAULT_SETTINGS.bank, ...data.bank },
+    dropdowns: { ...DEFAULT_SETTINGS.dropdowns, ...data.dropdowns },
+  };
 }
 
 export async function saveSettings(uid: string, s: AppSettings): Promise<void> {
-  await setDoc(doc(fbDb(), "users", uid, "meta", "settings"), s);
+  await setDoc(doc(fbDb(), "users", uid, "meta", "settings"), pruneUndefined(s));
   // ensure user root exists
   await setDoc(userRoot(uid), { updatedAt: serverTimestamp() }, { merge: true });
 }
 
 // ============ Clients ============
 export async function listClients(uid: string): Promise<Client[]> {
-  const q = query(
-    collection(fbDb(), "users", uid, "clients"),
-    orderBy("name"),
-  );
+  const q = query(collection(fbDb(), "users", uid, "clients"), orderBy("name"));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Client, "id">) }));
 }
@@ -58,13 +86,13 @@ export async function saveClient(
 ): Promise<string> {
   if (client.id) {
     const { id, ...rest } = client;
-    await updateDoc(doc(fbDb(), "users", uid, "clients", id), rest);
+    await updateDoc(doc(fbDb(), "users", uid, "clients", id), toUpdatePayload(rest));
     return id;
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id: _id, ...clientData } = client;
   const ref = await addDoc(collection(fbDb(), "users", uid, "clients"), {
-    ...clientData,
+    ...pruneUndefined(clientData),
     createdAt: Date.now(),
   });
   return ref.id;
@@ -76,25 +104,22 @@ export async function deleteClient(uid: string, id: string): Promise<void> {
 
 // ============ Quotations ============
 export async function listQuotations(uid: string): Promise<Quotation[]> {
-  const q = query(
-    collection(fbDb(), "users", uid, "quotations"),
-    orderBy("date", "desc"),
-  );
+  const q = query(collection(fbDb(), "users", uid, "quotations"), orderBy("date", "desc"));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Quotation, "id">) }));
 }
 
-export async function listQuotationsByClient(
-  uid: string,
-  clientId: string,
-): Promise<Quotation[]> {
+export async function listQuotationsByClient(uid: string, clientId: string): Promise<Quotation[]> {
+  // No orderBy here: where(==) + orderBy(other field) needs a composite index in
+  // Firestore and fails outright without one. Sort in memory instead.
   const q = query(
     collection(fbDb(), "users", uid, "quotations"),
     where("clientId", "==", clientId),
-    orderBy("date", "desc"),
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Quotation, "id">) }));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Quotation, "id">) }))
+    .sort((a, b) => b.date - a.date);
 }
 
 export async function getQuotation(uid: string, id: string): Promise<Quotation | null> {
@@ -110,7 +135,7 @@ export async function saveQuotation(
   if (quote.id) {
     const { id, ...rest } = quote;
     await updateDoc(doc(fbDb(), "users", uid, "quotations", id), {
-      ...rest,
+      ...toUpdatePayload(rest),
       updatedAt: Date.now(),
     });
     return id;
@@ -118,7 +143,7 @@ export async function saveQuotation(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id: _id, ...quoteData } = quote;
   const ref = await addDoc(collection(fbDb(), "users", uid, "quotations"), {
-    ...quoteData,
+    ...pruneUndefined(quoteData),
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });

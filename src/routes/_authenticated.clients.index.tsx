@@ -17,12 +17,22 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Phone, MapPin, Eye, PhoneCall, CalendarClock } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Phone,
+  MapPin,
+  Eye,
+  PhoneCall,
+  CalendarClock,
+} from "lucide-react";
 import { toast } from "sonner";
-import { isToday, isOverdue, formatDate } from "@/lib/format";
+import { isToday, isOverdue, formatDate, toDateInputValue, fromDateInputValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/clients")({
+export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
 });
 
@@ -109,16 +119,10 @@ function ClientsPage() {
               <Card key={c.id} className={cn(cbToday && "ring-2 ring-primary/60")}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <Link
-                      to="/clients/$id"
-                      params={{ id: c.id }}
-                      className="min-w-0 flex-1"
-                    >
+                    <Link to="/clients/$id" params={{ id: c.id }} className="min-w-0 flex-1">
                       <div className="truncate text-lg font-semibold">{c.name}</div>
                       {c.org && (
-                        <div className="truncate text-sm text-muted-foreground">
-                          {c.org}
-                        </div>
+                        <div className="truncate text-sm text-muted-foreground">{c.org}</div>
                       )}
                       <div className="mt-2 space-y-1 text-sm">
                         {c.phone && (
@@ -144,8 +148,16 @@ function ClientsPage() {
                                 : "bg-muted text-muted-foreground",
                           )}
                         >
-                          {cbToday ? <PhoneCall className="h-3 w-3" /> : <CalendarClock className="h-3 w-3" />}
-                          {cbToday ? "Call today" : cbOverdue ? `Overdue: ${formatDate(c.callbackDate)}` : `Callback: ${formatDate(c.callbackDate)}`}
+                          {cbToday ? (
+                            <PhoneCall className="h-3 w-3" />
+                          ) : (
+                            <CalendarClock className="h-3 w-3" />
+                          )}
+                          {cbToday
+                            ? "Call today"
+                            : cbOverdue
+                              ? `Overdue: ${formatDate(c.callbackDate)}`
+                              : `Callback: ${formatDate(c.callbackDate)}`}
                         </div>
                       )}
                     </Link>
@@ -168,8 +180,14 @@ function ClientsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        disabled={delMut.isPending}
                         onClick={() => {
-                          if (confirm(`Delete ${c.name}?`)) delMut.mutate(c.id);
+                          if (
+                            confirm(
+                              `Delete ${c.name}? Existing quotations for this client will be kept.`,
+                            )
+                          )
+                            delMut.mutate(c.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -245,9 +263,7 @@ export function ClientDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent
-        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
-      >
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{initial ? "Edit Client" : "Add Client"}</DialogTitle>
         </DialogHeader>
@@ -260,32 +276,47 @@ export function ClientDialog({
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Phone *">
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
             </Field>
             <Field label="Email">
-              <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Input
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
             </Field>
           </div>
           <Field label="Full Address">
-            <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="City">
-              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              <Input
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
             </Field>
             <Field label="State">
-              <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+              <Input
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
             <Field label="Callback / Follow-up Date">
               <Input
                 type="date"
-                value={form.callbackDate ? new Date(form.callbackDate).toISOString().slice(0, 10) : ""}
+                value={form.callbackDate ? toDateInputValue(form.callbackDate) : ""}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    callbackDate: e.target.value ? new Date(e.target.value).getTime() : undefined,
+                    callbackDate: e.target.value ? fromDateInputValue(e.target.value) : undefined,
                   })
                 }
               />

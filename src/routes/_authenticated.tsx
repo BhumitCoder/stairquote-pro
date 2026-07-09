@@ -4,7 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { listClients } from "@/lib/firestore";
 import { isToday } from "@/lib/format";
-import { Home, Users, FileText, PlusCircle, Settings, LogOut, Menu, X, PhoneCall } from "lucide-react";
+import {
+  Home,
+  Users,
+  FileText,
+  PlusCircle,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  PhoneCall,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { User } from "firebase/auth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,7 +28,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 type NavItem = {
-  to: "/" | "/clients" | "/quotations/new" | "/settings";
+  to: "/" | "/clients" | "/quotations" | "/quotations/new" | "/settings";
   label: string;
   icon: typeof Home;
   exact?: boolean;
@@ -29,6 +41,19 @@ const navItems: NavItem[] = [
   { to: "/quotations/new", label: "New Quotation", icon: PlusCircle },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
+
+// Only the most specific nav item is active — "/quotations/new" must not
+// also highlight "/quotations".
+function activeNavTo(pathname: string): NavItem["to"] | undefined {
+  return navItems
+    .filter((it) =>
+      it.exact ? pathname === it.to : pathname === it.to || pathname.startsWith(`${it.to}/`),
+    )
+    .reduce<NavItem | undefined>(
+      (best, it) => (best && best.to.length >= it.to.length ? best : it),
+      undefined,
+    )?.to;
+}
 
 function PageLoader() {
   return (
@@ -53,21 +78,33 @@ function SidebarContent({
   logout,
   nav,
   onClose,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   pathname: string;
   user: User;
   logout: () => Promise<void>;
   nav: ReturnType<typeof useNavigate>;
   onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col" style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-foreground)" }}>
-      {/* Logo */}
+    <div
+      className="flex h-full flex-col"
+      style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-foreground)" }}
+    >
+      {/* Logo + collapse toggle */}
       <div
-        className="flex h-20 shrink-0 items-center justify-between px-4"
+        className={cn(
+          "flex h-20 shrink-0 items-center",
+          collapsed ? "justify-center px-2" : "justify-between px-4",
+        )}
         style={{ borderBottom: "1px solid var(--color-sidebar-border)" }}
       >
-        <img src="/logo.png" alt="Vastu Stair Designer" className="h-10 w-auto object-contain" />
+        {!collapsed && (
+          <img src="/logo.png" alt="Vastu Stair Designer" className="h-10 w-auto object-contain" />
+        )}
         {onClose && (
           <button
             onClick={onClose}
@@ -77,39 +114,51 @@ function SidebarContent({
             <X className="h-4 w-4" />
           </button>
         )}
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            title={collapsed ? "Expand sidebar" : "Minimize sidebar"}
+            className="rounded-md p-1.5 transition-colors hover:bg-white/10"
+            style={{ color: "var(--color-sidebar-foreground)", opacity: 0.6 }}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <p
-          className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest"
-          style={{ color: "var(--color-sidebar-foreground)", opacity: 0.35 }}
-        >
-          Navigation
-        </p>
+      <nav className={cn("flex-1 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}>
+        {!collapsed && (
+          <p
+            className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color: "var(--color-sidebar-foreground)", opacity: 0.35 }}
+          >
+            Navigation
+          </p>
+        )}
         <ul className="space-y-0.5">
           {navItems.map((it) => {
-            const active = it.exact ? pathname === it.to : pathname.startsWith(it.to);
+            const active = it.to === activeNavTo(pathname);
             return (
               <li key={it.to}>
                 <Link
                   to={it.to}
                   onClick={onClose}
+                  title={collapsed ? it.label : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
-                    active
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "hover:bg-white/10",
+                    "flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                    collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
+                    active ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-white/10",
                   )}
-                  style={
-                    active
-                      ? {}
-                      : { color: "var(--color-sidebar-foreground)", opacity: 0.75 }
-                  }
+                  style={active ? {} : { color: "var(--color-sidebar-foreground)", opacity: 0.75 }}
                 >
                   <it.icon className="h-4 w-4 shrink-0" />
-                  <span>{it.label}</span>
-                  {active && (
+                  {!collapsed && <span>{it.label}</span>}
+                  {!collapsed && active && (
                     <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white/50" />
                   )}
                 </Link>
@@ -120,9 +169,13 @@ function SidebarContent({
       </nav>
 
       {/* User + logout */}
-      <div className="shrink-0 px-3 pb-4" style={{ borderTop: "1px solid var(--color-sidebar-border)" }}>
-        <div className="flex items-center gap-3 px-3 py-3">
+      <div
+        className={cn("shrink-0 pb-4", collapsed ? "px-2" : "px-3")}
+        style={{ borderTop: "1px solid var(--color-sidebar-border)" }}
+      >
+        <div className={cn("flex items-center py-3", collapsed ? "justify-center" : "gap-3 px-3")}>
           <div
+            title={collapsed ? (user.email ?? undefined) : undefined}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold uppercase"
             style={{
               background: "var(--color-sidebar-accent)",
@@ -131,31 +184,37 @@ function SidebarContent({
           >
             {user.email?.[0] ?? "U"}
           </div>
-          <div className="min-w-0 flex-1">
-            <div
-              className="truncate text-xs font-medium"
-              style={{ color: "var(--color-sidebar-foreground)" }}
-            >
-              {user.email}
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <div
+                className="truncate text-xs font-medium"
+                style={{ color: "var(--color-sidebar-foreground)" }}
+              >
+                {user.email}
+              </div>
+              <div
+                className="text-[11px]"
+                style={{ color: "var(--color-sidebar-foreground)", opacity: 0.45 }}
+              >
+                Owner
+              </div>
             </div>
-            <div
-              className="text-[11px]"
-              style={{ color: "var(--color-sidebar-foreground)", opacity: 0.45 }}
-            >
-              Owner
-            </div>
-          </div>
+          )}
         </div>
         <button
           onClick={async () => {
             await logout();
             nav({ to: "/auth" });
           }}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 hover:bg-red-500/15 hover:text-red-400"
+          title={collapsed ? "Sign out" : undefined}
+          className={cn(
+            "flex w-full items-center rounded-lg py-2 text-sm font-medium transition-all duration-150 hover:bg-red-500/15 hover:text-red-400",
+            collapsed ? "justify-center px-2" : "gap-3 px-3",
+          )}
           style={{ color: "var(--color-sidebar-foreground)", opacity: 0.6 }}
         >
           <LogOut className="h-4 w-4 shrink-0" />
-          Sign out
+          {!collapsed && "Sign out"}
         </button>
       </div>
     </div>
@@ -230,16 +289,26 @@ function CallbackReminderModal({ user }: { user: User }) {
 }
 
 function AuthedLayout() {
-  const { user, loading, configured, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("sidebar-collapsed") === "1",
+  );
+
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
 
   useEffect(() => {
-    if (!loading && (!user || !configured)) {
+    if (!loading && !user) {
       nav({ to: "/auth" });
     }
-  }, [user, loading, configured, nav]);
+  }, [user, loading, nav]);
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -251,10 +320,26 @@ function AuthedLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-muted/20">
+    <div
+      className="flex h-screen overflow-hidden bg-muted/20"
+      style={{ "--sidebar-w": collapsed ? "4rem" : "15rem" } as React.CSSProperties}
+    >
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r border-sidebar-border md:block" style={{ background: "var(--color-sidebar)" }}>
-        <SidebarContent pathname={pathname} user={user} logout={logout} nav={nav} />
+      <aside
+        className={cn(
+          "hidden shrink-0 border-r border-sidebar-border transition-all duration-200 md:block",
+          collapsed ? "w-16" : "w-60",
+        )}
+        style={{ background: "var(--color-sidebar)" }}
+      >
+        <SidebarContent
+          pathname={pathname}
+          user={user}
+          logout={logout}
+          nav={nav}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
       </aside>
 
       {/* Mobile drawer overlay */}

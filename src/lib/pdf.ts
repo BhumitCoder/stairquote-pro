@@ -6,8 +6,8 @@ import { urlToDataUrl } from "./storage";
 
 // ─── Brand colours ───────────────────────────────────────────────────────────
 const RED: [number, number, number] = [232, 72, 77];
-const DARK: [number, number, number] = [28, 28, 38];      // header bg
-const DARK_MID: [number, number, number] = [45, 45, 58];  // sub-header bg
+const DARK: [number, number, number] = [28, 28, 38]; // header bg
+const DARK_MID: [number, number, number] = [45, 45, 58]; // sub-header bg
 const WHITE: [number, number, number] = [255, 255, 255];
 const LIGHT_GRAY: [number, number, number] = [247, 247, 250];
 const MID_GRAY: [number, number, number] = [200, 200, 210];
@@ -41,15 +41,15 @@ function safe(s: string | undefined | null): string {
   return (s ?? "").replace(/[^\x20-\x7E]/g, (ch) => {
     // Replace common Unicode punctuation with ASCII equivalents
     const map: Record<string, string> = {
-      "\u2014": "--",  // em dash
-      "\u2013": "-",   // en dash
-      "\u2018": "'",   // left single quote
-      "\u2019": "'",   // right single quote
-      "\u201C": '"',   // left double quote
-      "\u201D": '"',   // right double quote
+      "\u2014": "--", // em dash
+      "\u2013": "-", // en dash
+      "\u2018": "'", // left single quote
+      "\u2019": "'", // right single quote
+      "\u201C": '"', // left double quote
+      "\u201D": '"', // right double quote
       "\u20B9": "Rs.", // rupee sign
-      "\u2022": "*",   // bullet
-      "\u25CF": "*",   // black circle
+      "\u2022": "*", // bullet
+      "\u25CF": "*", // black circle
       "\u2026": "...", // ellipsis
     };
     return map[ch] ?? "";
@@ -78,10 +78,7 @@ async function loadImages(quote: Quotation, settings: AppSettings): Promise<Imag
 
 // ─── Main PDF generator ───────────────────────────────────────────────────────
 
-export async function generateQuotationPdf(
-  quote: Quotation,
-  settings: AppSettings,
-): Promise<Blob> {
+export async function generateQuotationPdf(quote: Quotation, settings: AppSettings): Promise<Blob> {
   const images = await loadImages(quote, settings);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -104,40 +101,50 @@ export async function generateQuotationPdf(
   doc.setTextColor(...WHITE);
   doc.text(safe(settings.company.name || "Company Name"), margin, 11);
 
-  // Company details below name (header, left)
+  // Address below name (header, left) — one line per comma-separated part
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(200, 200, 215);
-  const compDetails = [
-    settings.company.address,
-    settings.company.phones && `Ph: ${settings.company.phones}`,
-    settings.company.email && `Email: ${settings.company.email}`,
-    settings.company.website,
-    settings.company.gst && `GSTIN: ${settings.company.gst}`,
-  ]
-    .filter(Boolean)
-    .map(safe);
+  const addressLines = safe(settings.company.address)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (settings.company.website) addressLines.push(safe(settings.company.website));
 
   let cy = 17;
-  for (const line of compDetails.slice(0, 3)) {
+  for (const line of addressLines.slice(0, 4)) {
     doc.text(line, margin, cy);
     cy += 4.2;
   }
 
-  // Logo (right side of header)
+  // Logo (top-right) with phone / email / GSTIN stacked underneath it
   const logoData =
-    (settings.company.logoUrl && images[settings.company.logoUrl]) ||
-    images[APP_LOGO_URL];
+    (settings.company.logoUrl && images[settings.company.logoUrl]) || images[APP_LOGO_URL];
+  const logoH = 15;
   if (logoData) {
     try {
-      const logoW = 44;
-      const logoH = 18;
-      const lx = pageW - margin - logoW;
-      const ly = (headerH - logoH) / 2 - 1;
-      doc.addImage(logoData, "PNG", lx, ly, logoW, logoH, undefined, "FAST");
+      const logoW = 38;
+      doc.addImage(logoData, "PNG", pageW - margin - logoW, 4, logoW, logoH, undefined, "FAST");
     } catch {
       // silently ignore broken images
     }
+  }
+
+  const contactLines = [
+    settings.company.phones && `Ph: ${settings.company.phones}`,
+    settings.company.email && `Email: ${settings.company.email}`,
+    settings.company.gst && `GSTIN: ${settings.company.gst}`,
+  ]
+    .filter(Boolean)
+    .map((l) => safe(l as string));
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(200, 200, 215);
+  let ry = logoData ? 4 + logoH + 4.5 : 11;
+  for (const line of contactLines) {
+    doc.text(line, pageW - margin, ry, { align: "right" });
+    ry += 4.2;
   }
 
   // ── CLIENT + QUOTE META STRIP ──────────────────────────────────────────────
@@ -149,7 +156,7 @@ export async function generateQuotationPdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(160, 165, 190);
-  doc.text("BILL TO", margin, headerH + 5.5);
+  doc.text("CLIENT", margin, headerH + 5.5);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -197,7 +204,9 @@ export async function generateQuotationPdf(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(...WHITE);
-    doc.text(safe(settings.company.salesPerson), pageW - margin - 20, headerH + 17, { align: "right" });
+    doc.text(safe(settings.company.salesPerson), pageW - margin - 20, headerH + 17, {
+      align: "right",
+    });
   }
 
   // ── DOCUMENT TITLE ─────────────────────────────────────────────────────────
@@ -217,7 +226,7 @@ export async function generateQuotationPdf(
   const rowImgH = 24;
   const body = quote.items.map((it, idx) => {
     const lines: string[] = [];
-    lines.push(`[${safe(it.code)}] ${safe(it.name)}`);
+    lines.push(safe(it.name));
     if (it.location) lines.push(`Location: ${safe(it.location)}`);
     const mf = [it.material, it.finish].filter(Boolean).map(safe).join(" / ");
     if (mf) lines.push(mf);
@@ -238,7 +247,7 @@ export async function generateQuotationPdf(
 
   autoTable(doc, {
     startY: titleY + 5,
-    head: [["#", "Description", "Width", "Height", "Qty", "Sqft/Rft", "Rate (Rs.)", "Amount (Rs.)"]],
+    head: [["#", "Description", "Width", "Height", "Qty", "Sqft/Rft", "Rate", "Amount"]],
     body: body as never,
     margin: { left: margin, right: margin },
     styles: {
@@ -256,20 +265,21 @@ export async function generateQuotationPdf(
       fontStyle: "bold",
       halign: "center",
       fontSize: 8.5,
-      cellPadding: 3,
+      cellPadding: { top: 3, bottom: 3, left: 1, right: 1 },
     },
     alternateRowStyles: {
       fillColor: LIGHT_GRAY,
     },
+    // Widths must sum to contentW (190mm) and leave every header on a single line.
     columnStyles: {
       0: { cellWidth: 8, halign: "center" },
-      1: { cellWidth: 68 },
+      1: { cellWidth: 63 },
       2: { cellWidth: 16, halign: "center" },
-      3: { cellWidth: 17, halign: "center" },
-      4: { cellWidth: 9, halign: "center" },
-      5: { cellWidth: 18, halign: "right" },
-      6: { cellWidth: 22, halign: "right" },
-      7: { cellWidth: 32, halign: "right" },
+      3: { cellWidth: 15, halign: "center" },
+      4: { cellWidth: 12, halign: "center" },
+      5: { cellWidth: 20, halign: "right" },
+      6: { cellWidth: 23, halign: "right" },
+      7: { cellWidth: 33, halign: "right" },
     },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 1) {
@@ -301,7 +311,9 @@ export async function generateQuotationPdf(
               undefined,
               "FAST",
             );
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
     },
@@ -317,7 +329,16 @@ export async function generateQuotationPdf(
   autoTable(doc, {
     startY: y,
     body: [
-      ["", "TOTAL", "", "", String(quote.totals.itemCount), pdfNum(quote.totals.area, 2), "", pdfNum(quote.subTotal, 2)],
+      [
+        "",
+        "TOTAL",
+        "",
+        "",
+        String(quote.totals.itemCount),
+        pdfNum(quote.totals.area, 2),
+        "",
+        pdfNum(quote.subTotal, 2),
+      ],
     ],
     margin: { left: margin, right: margin },
     styles: {
@@ -330,15 +351,16 @@ export async function generateQuotationPdf(
       lineColor: MID_GRAY,
       lineWidth: 0.2,
     },
+    // Keep in sync with the items-table columnStyles above so columns align.
     columnStyles: {
       0: { cellWidth: 8 },
-      1: { cellWidth: 68 },
+      1: { cellWidth: 63 },
       2: { cellWidth: 16 },
-      3: { cellWidth: 17 },
-      4: { cellWidth: 9, halign: "center" },
-      5: { cellWidth: 18, halign: "right" },
-      6: { cellWidth: 22 },
-      7: { cellWidth: 32, halign: "right" },
+      3: { cellWidth: 15 },
+      4: { cellWidth: 12, halign: "center" },
+      5: { cellWidth: 20, halign: "right" },
+      6: { cellWidth: 23 },
+      7: { cellWidth: 33, halign: "right" },
     },
   });
   y = (doc as JsPdfWithAt).lastAutoTable?.finalY ?? y + 8;
@@ -380,11 +402,13 @@ export async function generateQuotationPdf(
   doc.setTextColor(...TEXT);
   const bankLines = [
     settings.bank.accountName && `A/C Name : ${settings.bank.accountName}`,
-    settings.bank.bankName    && `Bank     : ${settings.bank.bankName}`,
-    settings.bank.branch      && `Branch   : ${settings.bank.branch}`,
-    settings.bank.accountNo   && `A/C No   : ${settings.bank.accountNo}`,
-    settings.bank.ifsc        && `IFSC     : ${settings.bank.ifsc}`,
-  ].filter(Boolean).map(safe);
+    settings.bank.bankName && `Bank     : ${settings.bank.bankName}`,
+    settings.bank.branch && `Branch   : ${settings.bank.branch}`,
+    settings.bank.accountNo && `A/C No   : ${settings.bank.accountNo}`,
+    settings.bank.ifsc && `IFSC     : ${settings.bank.ifsc}`,
+  ]
+    .filter(Boolean)
+    .map(safe);
   for (const l of bankLines) {
     doc.text(l, margin, ly);
     ly += 4;

@@ -27,7 +27,7 @@ function Dashboard() {
   const pending = quotes.filter((q) => q.status === "Draft" || q.status === "Sent").length;
   const accepted = quotes.filter((q) => q.status === "Accepted").length;
   const monthValue = quotes
-    .filter((q) => q.date >= monthStart)
+    .filter((q) => q.date >= monthStart && q.status !== "Rejected")
     .reduce((s, q) => s + q.grandTotal, 0);
 
   const recent = quotes.slice(0, 8);

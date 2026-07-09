@@ -10,7 +10,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { user, loading, configured, signIn } = useAuth();
+  const { user, loading, signIn } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,17 +30,19 @@ function AuthPage() {
       nav({ to: "/" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Sign-in failed";
-      toast.error(msg.replace("Firebase: ", "").replace(/\(auth\/.*?\)\.?/, "").trim());
+      toast.error(
+        msg
+          .replace("Firebase: ", "")
+          .replace(/\(auth\/.*?\)\.?/, "")
+          .trim(),
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div
-      className="flex min-h-screen"
-      style={{ background: "#0d0d17" }}
-    >
+    <div className="flex min-h-screen" style={{ background: "#0d0d17" }}>
       {/* ── LEFT BRAND PANEL ── */}
       <div
         className="relative hidden flex-col items-center justify-center overflow-hidden lg:flex lg:w-1/2"
@@ -79,15 +81,19 @@ function AuthPage() {
             className="mb-10 w-64 object-contain drop-shadow-2xl"
           />
 
-          <div className="mb-3 h-px w-24 rounded-full" style={{ background: "#E8484D", opacity: 0.6 }} />
+          <div
+            className="mb-3 h-px w-24 rounded-full"
+            style={{ background: "#E8484D", opacity: 0.6 }}
+          />
 
-          <h1 className="mb-3 text-3xl font-bold tracking-tight text-white">
-            Quotation Software
-          </h1>
-          <p className="max-w-xs text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
-            Create professional stair quotations, manage clients, and generate polished PDFs — all in one place.
+          <h1 className="mb-3 text-3xl font-bold tracking-tight text-white">Quotation Software</h1>
+          <p
+            className="max-w-xs text-sm leading-relaxed"
+            style={{ color: "rgba(255,255,255,0.45)" }}
+          >
+            Create professional stair quotations, manage clients, and generate polished PDFs — all
+            in one place.
           </p>
-
         </div>
 
         {/* Bottom border accent */}
@@ -145,9 +151,10 @@ function AuthPage() {
                   className="w-full rounded-xl py-3 pl-10 pr-4 text-sm text-white outline-none transition-all duration-200 placeholder:text-white/20"
                   style={{
                     background: "rgba(255,255,255,0.05)",
-                    border: focusedField === "email"
-                      ? "1px solid #E8484D"
-                      : "1px solid rgba(255,255,255,0.1)",
+                    border:
+                      focusedField === "email"
+                        ? "1px solid #E8484D"
+                        : "1px solid rgba(255,255,255,0.1)",
                     boxShadow: focusedField === "email" ? "0 0 0 3px rgba(232,72,77,0.12)" : "none",
                   }}
                 />
@@ -166,7 +173,9 @@ function AuthPage() {
               <div className="relative">
                 <Lock
                   className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
-                  style={{ color: focusedField === "password" ? "#E8484D" : "rgba(255,255,255,0.25)" }}
+                  style={{
+                    color: focusedField === "password" ? "#E8484D" : "rgba(255,255,255,0.25)",
+                  }}
                 />
                 <input
                   id="password"
@@ -181,10 +190,12 @@ function AuthPage() {
                   className="w-full rounded-xl py-3 pl-10 pr-4 text-sm text-white outline-none transition-all duration-200 placeholder:text-white/20"
                   style={{
                     background: "rgba(255,255,255,0.05)",
-                    border: focusedField === "password"
-                      ? "1px solid #E8484D"
-                      : "1px solid rgba(255,255,255,0.1)",
-                    boxShadow: focusedField === "password" ? "0 0 0 3px rgba(232,72,77,0.12)" : "none",
+                    border:
+                      focusedField === "password"
+                        ? "1px solid #E8484D"
+                        : "1px solid rgba(255,255,255,0.1)",
+                    boxShadow:
+                      focusedField === "password" ? "0 0 0 3px rgba(232,72,77,0.12)" : "none",
                   }}
                 />
               </div>
@@ -193,10 +204,12 @@ function AuthPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={busy || !configured}
+              disabled={busy}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: busy ? "rgba(232,72,77,0.7)" : "linear-gradient(135deg, #E8484D, #c9373c)",
+                background: busy
+                  ? "rgba(232,72,77,0.7)"
+                  : "linear-gradient(135deg, #E8484D, #c9373c)",
                 boxShadow: busy ? "none" : "0 4px 20px rgba(232,72,77,0.35)",
               }}
             >

@@ -22,7 +22,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatINR, formatDate, isToday, isOverdue } from "@/lib/format";
+import {
+  formatINR,
+  formatDate,
+  isToday,
+  isOverdue,
+  toDateInputValue,
+  fromDateInputValue,
+} from "@/lib/format";
 import type { QuoteStatus } from "@/lib/types";
 import {
   PlusCircle,
@@ -33,6 +40,7 @@ import {
   CalendarClock,
   PhoneCall,
   MessageCircle,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -47,19 +55,31 @@ function ClientProfile() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [cbOpen, setCbOpen] = useState(false);
+  const [quoteSearch, setQuoteSearch] = useState("");
 
   const { data: client } = useQuery({
     queryKey: ["client", user?.uid, id],
     queryFn: () => getClient(user!.uid, id),
     enabled: !!user,
   });
-  const { data: quotes = [] } = useQuery({
+  const { data: quotes = [], error: quotesError } = useQuery({
     queryKey: ["client-quotes", user?.uid, id],
     queryFn: () => listQuotationsByClient(user!.uid, id),
     enabled: !!user,
   });
 
   const totalValue = quotes.reduce((s, q) => s + q.grandTotal, 0);
+
+  const filteredQuotes = quotes.filter((q) => {
+    const t = quoteSearch.trim().toLowerCase();
+    if (!t) return true;
+    return (
+      q.number.toLowerCase().includes(t) ||
+      q.status.toLowerCase().includes(t) ||
+      formatDate(q.date).toLowerCase().includes(t) ||
+      String(q.grandTotal).includes(t)
+    );
+  });
 
   const statusMut = useMutation({
     mutationFn: ({ quoteId, status }: { quoteId: string; status: QuoteStatus }) => {
@@ -160,9 +180,7 @@ function ClientProfile() {
               <Button
                 size="lg"
                 className="h-12 gap-2"
-                onClick={() =>
-                  nav({ to: "/quotations/new", search: { client: client.id } })
-                }
+                onClick={() => nav({ to: "/quotations/new", search: { client: client.id } })}
               >
                 <PlusCircle className="h-5 w-5" /> New Quotation
               </Button>
@@ -206,14 +224,37 @@ function ClientProfile() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Quotation History</CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-lg">Quotation History</CardTitle>
+            {quotes.length > 0 && (
+              <div className="relative sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search quote no., status, date…"
+                  value={quoteSearch}
+                  onChange={(e) => setQuoteSearch(e.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
-          {quotes.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">No quotations yet for this client.</div>
+          {quotesError ? (
+            <div className="p-6 text-sm text-destructive">
+              Could not load quotations: {(quotesError as Error).message}
+            </div>
+          ) : quotes.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              No quotations yet for this client.
+            </div>
+          ) : filteredQuotes.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              No quotations match your search.
+            </div>
           ) : (
             <ul className="divide-y">
-              {quotes.map((q) => (
+              {filteredQuotes.map((q) => (
                 <li key={q.id} className="flex items-center gap-3 p-4">
                   <Link
                     to="/quotations/$id"
@@ -228,6 +269,7 @@ function ClientProfile() {
                   <div className="text-right font-semibold">{formatINR(q.grandTotal)}</div>
                   <Select
                     value={q.status}
+                    disabled={statusMut.isPending}
                     onValueChange={(v) =>
                       statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
                     }
@@ -284,17 +326,28 @@ function CallbackDialog({
   onOpenChange: (v: boolean) => void;
   callbackDate?: number;
   callbackNote?: string;
-  onSave: (date: number | undefined, note: string) => void;
+  onSave: (date: number | undefined, note: string) => void | Promise<void>;
 }) {
-  const [date, setDate] = useState(callbackDate ? new Date(callbackDate).toISOString().slice(0, 10) : "");
+  const [date, setDate] = useState(callbackDate ? toDateInputValue(callbackDate) : "");
   const [note, setNote] = useState(callbackNote || "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(d: number | undefined, n: string) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSave(d, n);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
         if (v) {
-          setDate(callbackDate ? new Date(callbackDate).toISOString().slice(0, 10) : "");
+          setDate(callbackDate ? toDateInputValue(callbackDate) : "");
           setNote(callbackNote || "");
         }
         onOpenChange(v);
@@ -320,12 +373,15 @@ function CallbackDialog({
         </div>
         <DialogFooter>
           {callbackDate && (
-            <Button variant="outline" onClick={() => onSave(undefined, "")}>
+            <Button variant="outline" disabled={saving} onClick={() => submit(undefined, "")}>
               Clear
             </Button>
           )}
-          <Button onClick={() => onSave(date ? new Date(date).getTime() : undefined, note)}>
-            Save
+          <Button
+            disabled={saving}
+            onClick={() => submit(date ? fromDateInputValue(date) : undefined, note)}
+          >
+            {saving ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

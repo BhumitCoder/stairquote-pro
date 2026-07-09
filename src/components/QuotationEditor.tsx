@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
@@ -9,17 +9,10 @@ import {
   nextQuoteNumber,
   deleteQuotation,
 } from "@/lib/firestore";
-import { uploadFile } from "@/lib/storage";
-import { blankItem, recomputeQuotation } from "@/lib/calc";
+import { uploadFile, deleteFile } from "@/lib/storage";
+import { blankItem, nextItemCode, recomputeQuotation } from "@/lib/calc";
 import { generateQuotationPdf, downloadBlob } from "@/lib/pdf";
-import type {
-  Client,
-  Quotation,
-  QuoteItem,
-  QuoteStatus,
-  RateMode,
-  MeasureUnit,
-} from "@/lib/types";
+import type { Client, Quotation, QuoteItem, QuoteStatus, RateMode, MeasureUnit } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,23 +27,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ClientDialog } from "@/routes/_authenticated.clients";
-import { formatINR, formatNum } from "@/lib/format";
+import { QuotationPreview } from "@/components/QuotationPreview";
+import { ClientDialog } from "@/routes/_authenticated.clients.index";
+import { formatINR, formatNum, toDateInputValue, fromDateInputValue } from "@/lib/format";
 import {
   Plus,
   Trash2,
   Copy,
   Download,
   Save,
-  MessageCircle,
   ImagePlus,
   ChevronUp,
   ChevronDown,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
-export function QuotationEditor({ initial, preselectClientId }: { initial?: Quotation; preselectClientId?: string }) {
+export function QuotationEditor({
+  initial,
+  preselectClientId,
+}: {
+  initial?: Quotation;
+  preselectClientId?: string;
+}) {
   const { user } = useAuth();
   const nav = useNavigate();
   const qc = useQueryClient();
@@ -68,8 +68,10 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(initial ? 4 : 1);
   const [clientId, setClientId] = useState<string>(initial?.clientId ?? preselectClientId ?? "");
-  const [items, setItems] = useState<QuoteItem[]>(initial?.items ?? [blankItem(1)]);
-  const [discount, setDiscount] = useState(initial?.discount ?? { mode: "percent" as const, value: 0 });
+  const [items, setItems] = useState<QuoteItem[]>(initial?.items ?? [blankItem()]);
+  const [discount, setDiscount] = useState(
+    initial?.discount ?? { mode: "percent" as const, value: 0 },
+  );
   const [gstPct, setGstPct] = useState(initial?.gstPercent ?? settings.gstPercent);
   const [status, setStatus] = useState<QuoteStatus>(initial?.status ?? "Draft");
   const [date, setDate] = useState<number>(initial?.date ?? Date.now());
@@ -117,7 +119,14 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
   });
 
   const delMut = useMutation({
-    mutationFn: () => deleteQuotation(user!.uid, initial!.id),
+    mutationFn: async () => {
+      // Clean up uploaded item photos so they don't pile up in Storage forever.
+      const paths = (initial!.items ?? [])
+        .map((it) => it.imagePath)
+        .filter((p): p is string => !!p);
+      await Promise.all(paths.map((p) => deleteFile(p)));
+      await deleteQuotation(user!.uid, initial!.id);
+    },
     onSuccess: () => {
       toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["quotations", user?.uid] });
@@ -125,46 +134,15 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
     },
   });
 
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  // One shared "busy" flag: while any save/delete/PDF action runs, every action
+  // button is disabled — a double-click on a new quotation must never create two.
   const [pdfBusy, setPdfBusy] = useState(false);
-  const pdfUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function build() {
-      if (step !== 4 || !computed) return;
-      setPdfBusy(true);
-      try {
-        const blob = await generateQuotationPdf(computed, settings);
-        if (cancelled) return;
-        // Revoke the previous URL (if any) before creating a new one to avoid leaking blobs
-        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
-        const url = URL.createObjectURL(blob);
-        pdfUrlRef.current = url;
-        setPdfPreviewUrl(url);
-      } catch {
-        // ignore preview errors — download/share still works
-      } finally {
-        if (!cancelled) setPdfBusy(false);
-      }
-    }
-    build();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, computed?.items, computed?.grandTotal, computed?.discount, computed?.gstPercent]);
-
-  // Revoke the final blob URL when the editor unmounts entirely
-  useEffect(() => {
-    return () => {
-      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const actionBusy = saveMut.isPending || delMut.isPending || pdfBusy;
 
   async function handleDownloadPdf() {
     if (!computed) return toast.error("Pick a client first");
+    if (actionBusy) return;
+    setPdfBusy(true);
     try {
       let q = computed;
       if (!initial) {
@@ -177,25 +155,9 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
       downloadBlob(blob, `${q.number}.pdf`);
     } catch (e) {
       toast.error((e as Error).message);
+    } finally {
+      setPdfBusy(false);
     }
-  }
-
-  async function handleWhatsApp() {
-    if (!computed || !client) return;
-    let q = computed;
-    try {
-      if (!initial) q = await saveMut.mutateAsync();
-      else await saveMut.mutateAsync();
-    } catch { /* ignore */ }
-    const blob = await generateQuotationPdf(q, settings);
-    downloadBlob(blob, `${q.number}.pdf`);
-    const phone = (client.phone || "").replace(/\D/g, "");
-    const msg = encodeURIComponent(
-      `Hello ${client.name},\n\nPlease find attached the quotation ${q.number} from ${settings.company.name}. Grand Total: ${formatINR(q.grandTotal)}.\n\nThank you.`,
-    );
-    const wa = phone ? `https://wa.me/${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
-    window.open(wa, "_blank");
-    toast.success("PDF downloaded — attach it in WhatsApp");
   }
 
   // ============ STEP UI ============
@@ -277,7 +239,7 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
               settings={settings}
               onChange={(u) => setItems(items.map((x, i) => (i === idx ? u : x)))}
               onDuplicate={() => {
-                const cp = { ...it, code: `S${String(items.length + 1).padStart(2, "0")}` };
+                const cp = { ...it, code: nextItemCode(items) };
                 setItems([...items, cp]);
               }}
               onDelete={() => setItems(items.filter((_, i) => i !== idx))}
@@ -294,7 +256,7 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
           <Button
             variant="outline"
             className="w-full h-12"
-            onClick={() => setItems([...items, blankItem(items.length + 1)])}
+            onClick={() => setItems([...items, blankItem(nextItemCode(items))])}
           >
             <Plus className="mr-1 h-4 w-4" /> Add Another Item
           </Button>
@@ -321,7 +283,9 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
                 <div className="flex gap-2">
                   <Select
                     value={discount.mode}
-                    onValueChange={(v) => setDiscount({ ...discount, mode: v as "percent" | "amount" })}
+                    onValueChange={(v) =>
+                      setDiscount({ ...discount, mode: v as "percent" | "amount" })
+                    }
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
@@ -334,7 +298,9 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
                   <Input
                     type="number"
                     value={discount.value || ""}
-                    onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setDiscount({ ...discount, value: Number(e.target.value) || 0 })
+                    }
                   />
                 </div>
               </div>
@@ -350,8 +316,10 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
                 <Label>Quote Date</Label>
                 <Input
                   type="date"
-                  value={new Date(date).toISOString().slice(0, 10)}
-                  onChange={(e) => setDate(new Date(e.target.value).getTime())}
+                  value={toDateInputValue(date)}
+                  onChange={(e) => {
+                    if (e.target.value) setDate(fromDateInputValue(e.target.value));
+                  }}
                 />
               </div>
             </div>
@@ -361,11 +329,7 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
               <TotalsRow label={`Discount`} value={`- ${formatINR(computed.discountAmt)}`} />
               <TotalsRow label={`GST @ ${gstPct}%`} value={formatINR(computed.gstAmt)} />
               <div className="mt-2 border-t pt-2">
-                <TotalsRow
-                  label="Grand Total"
-                  value={formatINR(computed.grandTotal)}
-                  highlight
-                />
+                <TotalsRow label="Grand Total" value={formatINR(computed.grandTotal)} highlight />
               </div>
               <div className="mt-3 text-xs text-muted-foreground">
                 {computed.totals.itemCount} items • {formatNum(computed.totals.area, 2)} area •{" "}
@@ -414,30 +378,11 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
             </div>
 
             <div>
-              <div className="mb-2 text-sm font-medium text-muted-foreground">PDF Preview</div>
-              <div className="overflow-hidden rounded-lg border bg-muted/30">
-                {pdfBusy && !pdfPreviewUrl ? (
-                  <div className="flex h-[70vh] items-center justify-center">
-                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                      <div className="flex gap-1.5">
-                        <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
-                        <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
-                        <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />
-                      </div>
-                      <span className="text-sm">Generating PDF preview…</span>
-                    </div>
-                  </div>
-                ) : pdfPreviewUrl ? (
-                  <iframe
-                    src={pdfPreviewUrl}
-                    title="Quotation PDF preview"
-                    className="h-[70vh] w-full"
-                  />
-                ) : (
-                  <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-                    Preview unavailable — you can still download or share.
-                  </div>
-                )}
+              <div className="mb-2 text-sm font-medium text-muted-foreground">
+                Quotation Preview
+              </div>
+              <div className="overflow-hidden rounded-lg border">
+                <QuotationPreview quote={computed} settings={settings} />
               </div>
             </div>
 
@@ -445,21 +390,34 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
               {initial && (
                 <Button
                   variant="outline"
+                  disabled={actionBusy}
                   onClick={() => {
                     if (confirm("Delete this quotation?")) delMut.mutate();
                   }}
                 >
-                  <Trash2 className="mr-1 h-4 w-4" /> Delete
+                  {delMut.isPending ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-1 h-4 w-4" />
+                  )}
+                  {delMut.isPending ? "Deleting…" : "Delete"}
                 </Button>
               )}
-              <Button variant="outline" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
-                <Save className="mr-1 h-4 w-4" /> Save Draft
+              <Button variant="outline" onClick={() => saveMut.mutate()} disabled={actionBusy}>
+                {saveMut.isPending && !pdfBusy ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-1 h-4 w-4" />
+                )}
+                {saveMut.isPending && !pdfBusy ? "Saving…" : "Save Draft"}
               </Button>
-              <Button variant="outline" onClick={handleWhatsApp}>
-                <MessageCircle className="mr-1 h-4 w-4" /> Share on WhatsApp
-              </Button>
-              <Button onClick={handleDownloadPdf}>
-                <Download className="mr-1 h-4 w-4" /> Download PDF
+              <Button onClick={handleDownloadPdf} disabled={actionBusy}>
+                {pdfBusy ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-1 h-4 w-4" />
+                )}
+                {pdfBusy ? "Preparing…" : "Download PDF"}
               </Button>
             </div>
           </CardContent>
@@ -507,9 +465,19 @@ function Stepper({
   );
 }
 
-function TotalsRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function TotalsRow({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
   return (
-    <div className={`flex items-center justify-between py-1 ${highlight ? "text-lg font-bold text-primary" : ""}`}>
+    <div
+      className={`flex items-center justify-between py-1 ${highlight ? "text-lg font-bold text-primary" : ""}`}
+    >
       <span>{label}</span>
       <span>{value}</span>
     </div>
@@ -536,15 +504,16 @@ function ItemEditor({
   uid: string;
 }) {
   const [busy, setBusy] = useState(false);
-  const set = <K extends keyof QuoteItem>(k: K, v: QuoteItem[K]) =>
-    onChange({ ...item, [k]: v });
+  const set = <K extends keyof QuoteItem>(k: K, v: QuoteItem[K]) => onChange({ ...item, [k]: v });
 
   async function uploadImage(file: File) {
     setBusy(true);
     try {
+      const oldPath = item.imagePath;
       const path = `users/${uid}/items/${Date.now()}-${file.name}`;
       const { url } = await uploadFile(path, file);
       onChange({ ...item, imageUrl: url, imagePath: path });
+      if (oldPath) void deleteFile(oldPath);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -553,15 +522,15 @@ function ItemEditor({
   }
 
   const lineAmount =
-    item.rateMode === "lumpsum"
-      ? item.qty * item.rate
-      : item.qty * item.measureValue * item.rate;
+    item.rateMode === "lumpsum" ? item.qty * item.rate : item.qty * item.measureValue * item.rate;
 
   return (
     <Card>
       <CardContent className="space-y-3 p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-primary">Item #{index + 1} — {item.code}</div>
+          <div className="text-sm font-semibold text-primary">
+            Item #{index + 1} — {item.code}
+          </div>
           <div className="flex gap-1">
             <Button size="icon" variant="ghost" onClick={() => onMove(-1)}>
               <ChevronUp className="h-4 w-4" />
@@ -703,7 +672,12 @@ function ItemEditor({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => set("specs", item.specs.filter((_, x) => x !== i))}
+                  onClick={() =>
+                    set(
+                      "specs",
+                      item.specs.filter((_, x) => x !== i),
+                    )
+                  }
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>

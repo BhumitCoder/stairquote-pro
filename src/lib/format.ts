@@ -44,6 +44,21 @@ export function isOverdue(ms: number): boolean {
   return ms < today.getTime() && !isToday(ms);
 }
 
+// <input type="date"> value for a ms timestamp, in LOCAL time.
+// (toISOString() converts to UTC and shifts the date for IST times before 5:30 AM.)
+export function toDateInputValue(ms: number): string {
+  const d = new Date(ms);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+// Parse an <input type="date"> value ("YYYY-MM-DD") as LOCAL midnight.
+export function fromDateInputValue(s: string): number {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
 export function todayKey(d = new Date()): string {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");

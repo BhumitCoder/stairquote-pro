@@ -95,7 +95,7 @@ function ClientsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
               <div className="h-5 w-36 animate-pulse rounded bg-muted" />
@@ -111,7 +111,7 @@ function ClientsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((c) => {
             const cbToday = c.callbackDate && isToday(c.callbackDate);
             const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);

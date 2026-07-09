@@ -64,7 +64,7 @@ function SettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="company">
+      <Tabs defaultValue="company" className="max-w-4xl">
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
           <TabsTrigger value="company" className="gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Company
@@ -90,62 +90,60 @@ function SettingsPage() {
                 Shown on every quotation PDF header and used across the app.
               </p>
             </CardHeader>
-            <CardContent className="grid gap-3">
+            <CardContent className="grid gap-3 sm:grid-cols-2">
               <Field label="Business Name">
                 <Input
                   value={s.company.name}
                   onChange={(e) => setS({ ...s, company: { ...s.company, name: e.target.value } })}
                 />
               </Field>
-              <Field label="Address">
-                <Textarea
-                  rows={2}
-                  value={s.company.address}
-                  onChange={(e) =>
-                    setS({ ...s, company: { ...s.company, address: e.target.value } })
-                  }
+              <Field label="GST Number">
+                <Input
+                  value={s.company.gst}
+                  onChange={(e) => setS({ ...s, company: { ...s.company, gst: e.target.value } })}
                 />
               </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Phone Numbers">
-                  <Input
-                    value={s.company.phones}
+              <div className="sm:col-span-2">
+                <Field label="Address (each comma starts a new line on the PDF)">
+                  <Textarea
+                    rows={3}
+                    value={s.company.address}
                     onChange={(e) =>
-                      setS({ ...s, company: { ...s.company, phones: e.target.value } })
-                    }
-                  />
-                </Field>
-                <Field label="Email">
-                  <Input
-                    value={s.company.email}
-                    onChange={(e) =>
-                      setS({ ...s, company: { ...s.company, email: e.target.value } })
-                    }
-                  />
-                </Field>
-                <Field label="Website">
-                  <Input
-                    value={s.company.website}
-                    onChange={(e) =>
-                      setS({ ...s, company: { ...s.company, website: e.target.value } })
-                    }
-                  />
-                </Field>
-                <Field label="GST Number">
-                  <Input
-                    value={s.company.gst}
-                    onChange={(e) => setS({ ...s, company: { ...s.company, gst: e.target.value } })}
-                  />
-                </Field>
-                <Field label="Sales Person">
-                  <Input
-                    value={s.company.salesPerson}
-                    onChange={(e) =>
-                      setS({ ...s, company: { ...s.company, salesPerson: e.target.value } })
+                      setS({ ...s, company: { ...s.company, address: e.target.value } })
                     }
                   />
                 </Field>
               </div>
+              <Field label="Phone Numbers">
+                <Input
+                  value={s.company.phones}
+                  onChange={(e) =>
+                    setS({ ...s, company: { ...s.company, phones: e.target.value } })
+                  }
+                />
+              </Field>
+              <Field label="Email">
+                <Input
+                  value={s.company.email}
+                  onChange={(e) => setS({ ...s, company: { ...s.company, email: e.target.value } })}
+                />
+              </Field>
+              <Field label="Website">
+                <Input
+                  value={s.company.website}
+                  onChange={(e) =>
+                    setS({ ...s, company: { ...s.company, website: e.target.value } })
+                  }
+                />
+              </Field>
+              <Field label="Sales Person">
+                <Input
+                  value={s.company.salesPerson}
+                  onChange={(e) =>
+                    setS({ ...s, company: { ...s.company, salesPerson: e.target.value } })
+                  }
+                />
+              </Field>
             </CardContent>
           </Card>
         </TabsContent>
@@ -299,7 +297,7 @@ function SettingsPage() {
 
       {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-4 py-3 backdrop-blur md:left-[var(--sidebar-w)] md:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
             {saveMut.isSuccess ? "All changes saved" : "Remember to save your changes"}
           </span>

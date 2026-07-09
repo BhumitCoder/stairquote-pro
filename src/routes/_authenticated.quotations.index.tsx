@@ -125,7 +125,7 @@ function QuotationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="space-y-3 rounded-xl border bg-card p-4">
               <div className="h-5 w-32 animate-pulse rounded bg-muted" />
@@ -150,7 +150,7 @@ function QuotationsPage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {paged.map((q) => (
               <Link key={q.id} to="/quotations/$id" params={{ id: q.id }}>
                 <Card className="h-full transition-shadow hover:shadow-md">

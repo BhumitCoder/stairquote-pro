@@ -74,13 +74,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Vast Stair — Quotation Software" },
+      { title: "Vastu Stair Designer — Quotation Software" },
       {
         name: "description",
         content:
           "Simple, fast quotation software for stair design & manufacturing. Create client-wise quotations with photos and share professional PDFs.",
       },
-      { property: "og:title", content: "Vast Stair — Quotation Software" },
+      { property: "og:title", content: "Vastu Stair Designer — Quotation Software" },
       {
         property: "og:description",
         content: "Create and share professional stair-quotation PDFs in minutes.",

@@ -61,7 +61,7 @@ function SidebarContent({
         className="flex h-20 shrink-0 items-center justify-between px-4"
         style={{ borderBottom: "1px solid var(--color-sidebar-border)" }}
       >
-        <img src="/logo.png" alt="Vast Stair" className="h-10 w-auto object-contain" />
+        <img src="/logo.png" alt="Vastu Stair Designer" className="h-10 w-auto object-contain" />
         {onClose && (
           <button
             onClick={onClose}
@@ -216,7 +216,7 @@ function AuthedLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <img src="/logo.png" alt="Vast Stair" className="h-8 w-auto object-contain" style={{ filter: "invert(0)" }} />
+          <img src="/logo.png" alt="Vastu Stair Designer" className="h-8 w-auto object-contain" />
         </header>
 
         {/* Scrollable page content */}

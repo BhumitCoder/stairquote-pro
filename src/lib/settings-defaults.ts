@@ -2,7 +2,7 @@ import type { AppSettings } from "./types";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   company: {
-    name: "Vast Stair Design",
+    name: "Vastu Stair Designer",
     address: "",
     phones: "",
     email: "",

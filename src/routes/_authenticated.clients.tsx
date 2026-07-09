@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { listClients, saveClient, deleteClient } from "@/lib/firestore";

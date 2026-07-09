@@ -88,25 +88,6 @@ function AuthPage() {
             Create professional stair quotations, manage clients, and generate polished PDFs — all in one place.
           </p>
 
-          <div className="mt-12 grid grid-cols-3 gap-6 text-center">
-            {[
-              { label: "Clients", icon: "👥" },
-              { label: "Quotations", icon: "📄" },
-              { label: "PDF Export", icon: "⬇️" },
-            ].map((f) => (
-              <div key={f.label} className="flex flex-col items-center gap-2">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl text-xl"
-                  style={{ background: "rgba(232,72,77,0.12)", border: "1px solid rgba(232,72,77,0.2)" }}
-                >
-                  {f.icon}
-                </div>
-                <span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  {f.label}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Bottom border accent */}

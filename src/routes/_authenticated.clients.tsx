@@ -17,8 +17,10 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Phone, MapPin } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Phone, MapPin, Eye, PhoneCall, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
+import { isToday, isOverdue, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/clients")({
   component: ClientsPage,
@@ -100,60 +102,84 @@ function ClientsPage() {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((c) => (
-            <Card key={c.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to="/clients/$id"
-                    params={{ id: c.id }}
-                    className="min-w-0 flex-1"
-                  >
-                    <div className="truncate text-lg font-semibold">{c.name}</div>
-                    {c.org && (
-                      <div className="truncate text-sm text-muted-foreground">
-                        {c.org}
+          {filtered.map((c) => {
+            const cbToday = c.callbackDate && isToday(c.callbackDate);
+            const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);
+            return (
+              <Card key={c.id} className={cn(cbToday && "ring-2 ring-primary/60")}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      to="/clients/$id"
+                      params={{ id: c.id }}
+                      className="min-w-0 flex-1"
+                    >
+                      <div className="truncate text-lg font-semibold">{c.name}</div>
+                      {c.org && (
+                        <div className="truncate text-sm text-muted-foreground">
+                          {c.org}
+                        </div>
+                      )}
+                      <div className="mt-2 space-y-1 text-sm">
+                        {c.phone && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5" /> {c.phone}
+                          </div>
+                        )}
+                        {(c.city || c.state) && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {[c.city, c.state].filter(Boolean).join(", ")}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="mt-2 space-y-1 text-sm">
-                      {c.phone && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5" /> {c.phone}
+                      {c.callbackDate && (
+                        <div
+                          className={cn(
+                            "mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                            cbToday
+                              ? "bg-primary/15 text-primary"
+                              : cbOverdue
+                                ? "bg-destructive/15 text-destructive"
+                                : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {cbToday ? <PhoneCall className="h-3 w-3" /> : <CalendarClock className="h-3 w-3" />}
+                          {cbToday ? "Call today" : cbOverdue ? `Overdue: ${formatDate(c.callbackDate)}` : `Callback: ${formatDate(c.callbackDate)}`}
                         </div>
                       )}
-                      {(c.city || c.state) && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {[c.city, c.state].filter(Boolean).join(", ")}
-                        </div>
-                      )}
+                    </Link>
+                    <div className="flex flex-col gap-1">
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link to="/clients/$id" params={{ id: c.id }}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditing(c);
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (confirm(`Delete ${c.name}?`)) delMut.mutate(c.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
-                  </Link>
-                  <div className="flex flex-col gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setEditing(c);
-                        setOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (confirm(`Delete ${c.name}?`)) delMut.mutate(c.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -184,7 +210,7 @@ export function ClientDialog({
   trigger?: React.ReactNode;
 }) {
   const { user } = useAuth();
-  const [form, setForm] = useState<Omit<Client, "id"> & { id?: string }>({
+  const blank = {
     name: "",
     org: "",
     phone: "",
@@ -192,14 +218,16 @@ export function ClientDialog({
     address: "",
     city: "",
     state: "",
-  });
+    callbackDate: undefined as number | undefined,
+    callbackNote: "",
+  };
+  const [form, setForm] = useState<Omit<Client, "id"> & { id?: string }>(blank);
 
   useEffect(() => {
     if (open) {
-      setForm(
-        initial ?? { name: "", org: "", phone: "", email: "", address: "", city: "", state: "" },
-      );
+      setForm(initial ?? blank);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
 
   const saveMut = useMutation({
@@ -247,6 +275,27 @@ export function ClientDialog({
             </Field>
             <Field label="State">
               <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
+            <Field label="Callback / Follow-up Date">
+              <Input
+                type="date"
+                value={form.callbackDate ? new Date(form.callbackDate).toISOString().slice(0, 10) : ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    callbackDate: e.target.value ? new Date(e.target.value).getTime() : undefined,
+                  })
+                }
+              />
+            </Field>
+            <Field label="Callback Note">
+              <Input
+                placeholder="e.g. Discuss revised quote"
+                value={form.callbackNote || ""}
+                onChange={(e) => setForm({ ...form, callbackNote: e.target.value })}
+              />
             </Field>
           </div>
         </div>

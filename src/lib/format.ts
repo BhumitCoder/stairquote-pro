@@ -24,6 +24,26 @@ export function formatDate(ms: number): string {
   });
 }
 
+export function isSameDay(a: number, b: number): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
+export function isToday(ms: number): boolean {
+  return isSameDay(ms, Date.now());
+}
+
+export function isOverdue(ms: number): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return ms < today.getTime() && !isToday(ms);
+}
+
 export function todayKey(d = new Date()): string {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");

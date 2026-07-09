@@ -8,6 +8,8 @@ export interface Client {
   city?: string;
   state?: string;
   createdAt?: number;
+  callbackDate?: number; // ms — next follow-up/callback reminder
+  callbackNote?: string;
 }
 
 export type RateMode = "sqft" | "rft" | "lumpsum";

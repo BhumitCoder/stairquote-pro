@@ -13,7 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Trash2, Plus, ImagePlus } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  ImagePlus,
+  Building2,
+  Landmark,
+  FileText,
+  ListChecks,
+  SlidersHorizontal,
+  Save,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -62,52 +72,75 @@ function SettingsPage() {
     setS({ ...s, dropdowns: { ...s.dropdowns, [key]: list } });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold sm:text-3xl">Settings</h1>
-        <Button size="lg" className="h-12" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
-          {saveMut.isPending ? "Saving…" : "Save Changes"}
-        </Button>
+        <div>
+          <h1 className="text-2xl font-bold sm:text-3xl">Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Configure your company profile, PDF content, and quotation defaults
+          </p>
+        </div>
       </div>
 
       <Tabs defaultValue="company">
-        <TabsList className="w-full flex-wrap h-auto">
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="bank">Bank</TabsTrigger>
-          <TabsTrigger value="terms">Terms</TabsTrigger>
-          <TabsTrigger value="dropdowns">Dropdowns</TabsTrigger>
-          <TabsTrigger value="general">General</TabsTrigger>
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
+          <TabsTrigger value="company" className="gap-1.5">
+            <Building2 className="h-3.5 w-3.5" /> Company
+          </TabsTrigger>
+          <TabsTrigger value="bank" className="gap-1.5">
+            <Landmark className="h-3.5 w-3.5" /> Bank
+          </TabsTrigger>
+          <TabsTrigger value="terms" className="gap-1.5">
+            <FileText className="h-3.5 w-3.5" /> Terms
+          </TabsTrigger>
+          <TabsTrigger value="dropdowns" className="gap-1.5">
+            <ListChecks className="h-3.5 w-3.5" /> Dropdowns
+          </TabsTrigger>
+          <TabsTrigger value="general" className="gap-1.5">
+            <SlidersHorizontal className="h-3.5 w-3.5" /> General
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="company">
+        <TabsContent value="company" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Company Profile</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" /> Company Profile
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Shown on every quotation PDF header and used across the app.
+              </p>
             </CardHeader>
             <CardContent className="grid gap-3">
-              <div className="flex items-center gap-4">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border bg-muted">
+              <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
                   {s.company.logoUrl ? (
                     <img src={s.company.logoUrl} alt="logo" className="h-full w-full object-contain" />
                   ) : (
                     <ImagePlus className="h-8 w-8 text-muted-foreground" />
                   )}
                 </div>
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={busy}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleLogoUpload(f);
-                    }}
-                  />
-                  <Button asChild variant="outline">
-                    <span>{busy ? "Uploading…" : "Upload Logo"}</span>
-                  </Button>
-                </label>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Company Logo</div>
+                  <p className="text-xs text-muted-foreground">
+                    Shown top-right on every PDF. Falls back to the app logo if not set.
+                  </p>
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={busy}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleLogoUpload(f);
+                      }}
+                    />
+                    <Button asChild variant="outline" size="sm" className="mt-1">
+                      <span>{busy ? "Uploading…" : "Upload Logo"}</span>
+                    </Button>
+                  </label>
+                </div>
               </div>
               <Field label="Business Name">
                 <Input value={s.company.name} onChange={(e) => setS({ ...s, company: { ...s.company, name: e.target.value } })} />
@@ -136,10 +169,15 @@ function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="bank">
+        <TabsContent value="bank" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Bank Details</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-primary" /> Bank Details
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Printed on quotation PDFs so clients know where to send payment.
+              </p>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <Field label="Account Name">
@@ -161,11 +199,14 @@ function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="terms">
+        <TabsContent value="terms" className="mt-4">
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Terms</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" /> Payment Terms
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Appears above Terms &amp; Conditions on the PDF.</p>
               </CardHeader>
               <CardContent>
                 <Textarea rows={5} value={s.paymentTerms} onChange={(e) => setS({ ...s, paymentTerms: e.target.value })} />
@@ -173,7 +214,10 @@ function SettingsPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Terms &amp; Conditions</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-primary" /> Terms &amp; Conditions
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Numbered list printed at the bottom of every quotation.</p>
               </CardHeader>
               <CardContent className="space-y-2">
                 {s.termsAndConditions.map((t, i) => (
@@ -213,6 +257,7 @@ function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Loading / Transport Notice</CardTitle>
+                <p className="text-sm text-muted-foreground">Highlighted red notice above payment terms on the PDF.</p>
               </CardHeader>
               <CardContent>
                 <Input value={s.loadingNotice} onChange={(e) => setS({ ...s, loadingNotice: e.target.value })} />
@@ -221,7 +266,7 @@ function SettingsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="dropdowns">
+        <TabsContent value="dropdowns" className="mt-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <DropdownEditor
               title="Stair Types"
@@ -241,10 +286,13 @@ function SettingsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="general">
+        <TabsContent value="general" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>General</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-primary" /> General
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">Defaults applied to every new quotation.</p>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <Field label="GST %">
@@ -274,6 +322,19 @@ function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Sticky save bar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-4 py-3 backdrop-blur md:left-60 md:px-8">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {saveMut.isSuccess ? "All changes saved" : "Remember to save your changes"}
+          </span>
+          <Button size="lg" className="h-11 gap-2" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+            <Save className="h-4 w-4" />
+            {saveMut.isPending ? "Saving…" : "Save Changes"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

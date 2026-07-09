@@ -1,9 +1,14 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
-import { Home, Users, PlusCircle, Settings, LogOut, Menu, X } from "lucide-react";
+import { listClients } from "@/lib/firestore";
+import { isToday } from "@/lib/format";
+import { Home, Users, PlusCircle, Settings, LogOut, Menu, X, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { User } from "firebase/auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -156,6 +161,73 @@ function SidebarContent({
   );
 }
 
+function CallbackReminderModal({ user }: { user: User }) {
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients", user.uid],
+    queryFn: () => listClients(user.uid),
+    enabled: !!user,
+  });
+
+  const dueToday = clients.filter((c) => c.callbackDate && isToday(c.callbackDate));
+
+  useEffect(() => {
+    if (dueToday.length > 0 && !dismissed) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dueToday.length]);
+
+  if (dueToday.length === 0) return null;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setDismissed(true);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PhoneCall className="h-5 w-5 text-primary" />
+            Callback reminders for today
+          </DialogTitle>
+        </DialogHeader>
+        <ul className="max-h-80 space-y-2 overflow-y-auto">
+          {dueToday.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3"
+            >
+              <div className="min-w-0">
+                <div className="font-medium">{c.name}</div>
+                {c.callbackNote && (
+                  <div className="truncate text-xs text-muted-foreground">{c.callbackNote}</div>
+                )}
+                {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {c.phone && (
+                  <Button size="sm" asChild>
+                    <a href={`tel:${c.phone}`}>Call</a>
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" asChild>
+                  <Link to="/clients/$id" params={{ id: c.id }} onClick={() => setOpen(false)}>
+                    View
+                  </Link>
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AuthedLayout() {
   const { user, loading, configured, logout } = useAuth();
   const nav = useNavigate();
@@ -205,6 +277,8 @@ function AuthedLayout() {
           </aside>
         </>
       )}
+
+      <CallbackReminderModal user={user} />
 
       {/* Main content column */}
       <div className="flex flex-1 flex-col overflow-hidden">

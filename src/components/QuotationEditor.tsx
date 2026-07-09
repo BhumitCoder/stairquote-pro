@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
@@ -124,6 +124,44 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
       nav({ to: "/" });
     },
   });
+
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function build() {
+      if (step !== 4 || !computed) return;
+      setPdfBusy(true);
+      try {
+        const blob = await generateQuotationPdf(computed, settings);
+        if (cancelled) return;
+        // Revoke the previous URL (if any) before creating a new one to avoid leaking blobs
+        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        pdfUrlRef.current = url;
+        setPdfPreviewUrl(url);
+      } catch {
+        // ignore preview errors — download/share still works
+      } finally {
+        if (!cancelled) setPdfBusy(false);
+      }
+    }
+    build();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, computed?.items, computed?.grandTotal, computed?.discount, computed?.gstPercent]);
+
+  // Revoke the final blob URL when the editor unmounts entirely
+  useEffect(() => {
+    return () => {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleDownloadPdf() {
     if (!computed) return toast.error("Pick a client first");
@@ -355,52 +393,51 @@ export function QuotationEditor({ initial, preselectClientId }: { initial?: Quot
       {step === 4 && computed && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 4 — Review &amp; Share</CardTitle>
+            <CardTitle>Step 4 — Review &amp; Send</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Client</div>
-              <div className="font-semibold">{client?.name}</div>
-              {client?.org && <div className="text-sm">{client.org}</div>}
-              <div className="text-xs text-muted-foreground">
-                {[client?.phone, client?.email].filter(Boolean).join(" • ")}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Client</div>
+                <div className="font-semibold">{client?.name}</div>
+                {client?.org && <div className="text-sm">{client.org}</div>}
+                <div className="text-xs text-muted-foreground">
+                  {[client?.phone, client?.email].filter(Boolean).join(" • ")}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Grand Total</div>
+                <div className="text-2xl font-bold text-primary">
+                  {formatINR(computed.grandTotal)}
+                </div>
               </div>
             </div>
 
-            <div className="rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="p-2 text-left">Item</th>
-                    <th className="p-2 text-right">Qty</th>
-                    <th className="p-2 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {computed.items.map((it, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="p-2">
-                        <div className="font-medium">
-                          [{it.code}] {it.name || "—"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {[it.location, it.material, it.finish].filter(Boolean).join(" • ")}
-                        </div>
-                      </td>
-                      <td className="p-2 text-right">{it.qty}</td>
-                      <td className="p-2 text-right font-medium">{formatINR(it.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <TotalsRow label="Sub Total" value={formatINR(computed.subTotal)} />
-              <TotalsRow label="Discount" value={`- ${formatINR(computed.discountAmt)}`} />
-              <TotalsRow label={`GST @ ${gstPct}%`} value={formatINR(computed.gstAmt)} />
-              <div className="mt-2 border-t pt-2">
-                <TotalsRow label="Grand Total" value={formatINR(computed.grandTotal)} highlight />
+            <div>
+              <div className="mb-2 text-sm font-medium text-muted-foreground">PDF Preview</div>
+              <div className="overflow-hidden rounded-lg border bg-muted/30">
+                {pdfBusy && !pdfPreviewUrl ? (
+                  <div className="flex h-[70vh] items-center justify-center">
+                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                      <div className="flex gap-1.5">
+                        <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+                        <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+                        <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />
+                      </div>
+                      <span className="text-sm">Generating PDF preview…</span>
+                    </div>
+                  </div>
+                ) : pdfPreviewUrl ? (
+                  <iframe
+                    src={pdfPreviewUrl}
+                    title="Quotation PDF preview"
+                    className="h-[70vh] w-full"
+                  />
+                ) : (
+                  <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                    Preview unavailable — you can still download or share.
+                  </div>
+                )}
               </div>
             </div>
 

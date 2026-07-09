@@ -1,0 +1,61 @@
+import type { AppSettings } from "./types";
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  company: {
+    name: "Vast Stair Design",
+    address: "",
+    phones: "",
+    email: "",
+    website: "",
+    gst: "",
+    salesPerson: "",
+  },
+  bank: {
+    accountName: "",
+    bankName: "",
+    branch: "",
+    accountNo: "",
+    ifsc: "",
+  },
+  paymentTerms:
+    "Up to 2 lakhs — 100% advance.\n10–20 lakhs — 70% advance, 30% before dispatch.\n20 lakhs to 1 Cr — 35% advance, 65% before dispatch.",
+  termsAndConditions: [
+    "18% GST applies on subtotal.",
+    "Final billing as per actual site measurement.",
+    "Site should provide power for hand tools.",
+    "Installation within 30 days after advance received.",
+    "This rate is valid for 15 days.",
+    "Dimensions to be verified by client/architect; changes will affect pricing.",
+    "No warranty on glass once installed.",
+    "Client must report manufacturing defects within 2 days of installation.",
+  ],
+  gstPercent: 18,
+  currency: "₹",
+  quotePrefix: "Q",
+  docTitle: "Estimate",
+  loadingNotice: "LOADING, UNLOADING & TRANSPORTATION EXTRA AS PER ACTUAL.",
+  dropdowns: {
+    stairTypes: [
+      "Straight Staircase",
+      "Spiral Staircase",
+      "L-Shape Staircase",
+      "U-Shape Staircase",
+      "Floating Staircase",
+      "Railing",
+      "Handrail",
+      "Glass Railing",
+      "Custom",
+    ],
+    materials: [
+      "MS Steel",
+      "SS 304",
+      "SS 316",
+      "Wood",
+      "Glass + MS",
+      "Glass + SS",
+      "Aluminium",
+      "Custom",
+    ],
+    units: ["sqft", "rft"],
+  },
+};

@@ -62,10 +62,9 @@ interface ImageCache {
   [url: string]: string | null;
 }
 
-async function loadImages(quote: Quotation, settings: AppSettings): Promise<ImageCache> {
+async function loadImages(quote: Quotation): Promise<ImageCache> {
   const cache: ImageCache = {};
   const urls = new Set<string>();
-  if (settings.company.logoUrl) urls.add(settings.company.logoUrl);
   urls.add(APP_LOGO_URL);
   for (const it of quote.items) if (it.imageUrl) urls.add(it.imageUrl);
   await Promise.all(
@@ -79,7 +78,7 @@ async function loadImages(quote: Quotation, settings: AppSettings): Promise<Imag
 // ─── Main PDF generator ───────────────────────────────────────────────────────
 
 export async function generateQuotationPdf(quote: Quotation, settings: AppSettings): Promise<Blob> {
-  const images = await loadImages(quote, settings);
+  const images = await loadImages(quote);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -118,8 +117,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   }
 
   // Logo (top-right) with phone / email / GSTIN stacked underneath it
-  const logoData =
-    (settings.company.logoUrl && images[settings.company.logoUrl]) || images[APP_LOGO_URL];
+  const logoData = images[APP_LOGO_URL];
   const logoH = 15;
   if (logoData) {
     try {
@@ -148,11 +146,31 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   }
 
   // ── CLIENT + QUOTE META STRIP ──────────────────────────────────────────────
-  const stripH = 22;
+  // Client details stacked one per line; the strip grows to fit them.
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  const clientAddress = [
+    quote.clientSnapshot.address,
+    quote.clientSnapshot.city,
+    quote.clientSnapshot.state,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const detailMaxW = pageW - margin * 2 - 62; // keep clear of the quote-no block on the right
+  const clientLines = [
+    quote.clientSnapshot.org,
+    quote.clientSnapshot.phone && `Mobile: ${quote.clientSnapshot.phone}`,
+    quote.clientSnapshot.email,
+    clientAddress,
+  ]
+    .filter(Boolean)
+    .map((l) => safe(l as string))
+    .flatMap((l) => doc.splitTextToSize(l, detailMaxW) as string[]);
+
+  const stripH = Math.max(22, 17.5 + clientLines.length * 4);
   doc.setFillColor(...DARK_MID);
   doc.rect(0, headerH, pageW, stripH, "F");
 
-  // "To:" client info
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(160, 165, 190);
@@ -166,16 +184,11 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(195, 200, 220);
-  const clientDetail = [
-    quote.clientSnapshot.org,
-    quote.clientSnapshot.phone && `Mobile: ${quote.clientSnapshot.phone}`,
-    quote.clientSnapshot.email,
-    [quote.clientSnapshot.city, quote.clientSnapshot.state].filter(Boolean).join(", "),
-  ]
-    .filter(Boolean)
-    .map(safe)
-    .join("   |   ");
-  doc.text(clientDetail, margin, headerH + 17);
+  let dy = headerH + 15.8;
+  for (const line of clientLines) {
+    doc.text(line, margin, dy);
+    dy += 4;
+  }
 
   // Quote number + date (right side of strip)
   doc.setFont("helvetica", "bold");
@@ -224,6 +237,10 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
 
   // ── ITEMS TABLE ────────────────────────────────────────────────────────────
   const rowImgH = 24;
+  const SPEC_LINE_H = 3.6;
+  // Pre-wrap spec lines at the description column's full width (63mm - padding).
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
   const body = quote.items.map((it, idx) => {
     const lines: string[] = [];
     lines.push(safe(it.name));
@@ -231,11 +248,21 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     const mf = [it.material, it.finish].filter(Boolean).map(safe).join(" / ");
     if (mf) lines.push(mf);
     if (it.steps) lines.push(`Steps: ${it.steps}`);
-    for (const s of it.specs) if (s.trim()) lines.push(`* ${safe(s)}`);
     if (it.weight) lines.push(`Weight: ${pdfNum(it.weight, 2)} Kg`);
+
+    const specTexts = it.specs.filter((s) => s.trim()).map((s) => `* ${safe(s)}`);
+    const hasImg = !!(it.imageUrl && images[it.imageUrl]);
+    let specLines: string[] = [];
+    if (hasImg) {
+      // With a photo, specs render manually below it across the full cell width.
+      specLines = specTexts.flatMap((s) => doc.splitTextToSize(s, 58) as string[]);
+    } else {
+      lines.push(...specTexts); // no photo — the whole cell is already full-width
+    }
+
     return [
       String(idx + 1),
-      { content: lines.join("\n"), _img: it.imageUrl },
+      { content: lines.join("\n"), _img: hasImg ? it.imageUrl : undefined, _specs: specLines },
       it.width ? String(it.width) : "-",
       it.height ? String(it.height) : "-",
       String(it.qty),
@@ -283,13 +310,17 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 1) {
-        const raw = data.cell.raw as { _img?: string } | undefined;
-        if (raw?._img && images[raw._img]) {
-          data.cell.styles.minCellHeight = rowImgH + 6;
+        const raw = data.cell.raw as { _img?: string; _specs?: string[] } | undefined;
+        if (raw?._img) {
+          // Photo on the left, main details beside it; the bottom of the cell is
+          // reserved so the specs can span the full width under the photo.
+          const specs = raw._specs ?? [];
+          const specBlockH = specs.length ? specs.length * SPEC_LINE_H + 3 : 0;
+          data.cell.styles.minCellHeight = rowImgH + 6 + specBlockH;
           (data.cell.styles as unknown as { cellPadding: unknown }).cellPadding = {
             top: 2,
             right: 2,
-            bottom: 2,
+            bottom: 2 + specBlockH,
             left: 28,
           };
         }
@@ -297,7 +328,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     },
     didDrawCell: (data: CellHookData) => {
       if (data.section === "body" && data.column.index === 1) {
-        const raw = data.cell.raw as { _img?: string } | undefined;
+        const raw = data.cell.raw as { _img?: string; _specs?: string[] } | undefined;
         const url = raw?._img;
         if (url && images[url]) {
           try {
@@ -313,6 +344,17 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
             );
           } catch {
             /* ignore */
+          }
+        }
+        const specs = raw?._specs ?? [];
+        if (specs.length) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8.5);
+          doc.setTextColor(...TEXT);
+          let sy = data.cell.y + data.cell.height - specs.length * SPEC_LINE_H - 2.5 + 3;
+          for (const line of specs) {
+            doc.text(line, data.cell.x + 2.5, sy);
+            sy += SPEC_LINE_H;
           }
         }
       }
@@ -373,7 +415,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   const rightX2 = margin + leftW;
   const rowH = 7;
 
-  // LEFT — summary stats + bank
+  // LEFT — summary stats
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...TEXT);
@@ -387,31 +429,6 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   for (const l of summaryLines) {
     doc.text(l, margin, ly + 4);
     ly += 5.5;
-  }
-
-  // Bank details heading
-  ly += 3;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...RED);
-  doc.text("BANK DETAILS", margin, ly);
-  ly += 4.5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...TEXT);
-  const bankLines = [
-    settings.bank.accountName && `A/C Name : ${settings.bank.accountName}`,
-    settings.bank.bankName && `Bank     : ${settings.bank.bankName}`,
-    settings.bank.branch && `Branch   : ${settings.bank.branch}`,
-    settings.bank.accountNo && `A/C No   : ${settings.bank.accountNo}`,
-    settings.bank.ifsc && `IFSC     : ${settings.bank.ifsc}`,
-  ]
-    .filter(Boolean)
-    .map(safe);
-  for (const l of bankLines) {
-    doc.text(l, margin, ly);
-    ly += 4;
   }
 
   // RIGHT — totals breakdown

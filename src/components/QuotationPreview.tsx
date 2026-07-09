@@ -11,22 +11,7 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
   const c = quote.clientSnapshot;
   const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
 
-  const clientDetail = [
-    c.org,
-    c.phone && `Mobile: ${c.phone}`,
-    c.email,
-    [c.city, c.state].filter(Boolean).join(", "),
-  ]
-    .filter(Boolean)
-    .join("   |   ");
-
-  const bankLines = [
-    settings.bank.accountName && ["A/C Name", settings.bank.accountName],
-    settings.bank.bankName && ["Bank", settings.bank.bankName],
-    settings.bank.branch && ["Branch", settings.bank.branch],
-    settings.bank.accountNo && ["A/C No", settings.bank.accountNo],
-    settings.bank.ifsc && ["IFSC", settings.bank.ifsc],
-  ].filter(Boolean) as [string, string][];
+  const clientAddress = [c.address, c.city, c.state].filter(Boolean).join(", ");
 
   return (
     <div className="overflow-hidden bg-white text-[13px] leading-snug text-zinc-800 shadow-sm">
@@ -50,7 +35,7 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <img
-              src={settings.company.logoUrl || "/logo.png"}
+              src="/logo.png"
               alt=""
               className="h-12 w-auto max-w-[140px] object-contain sm:h-14"
             />
@@ -72,7 +57,12 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
               CLIENT
             </div>
             <div className="mt-0.5 font-semibold">{c.name}</div>
-            {clientDetail && <div className="mt-0.5 text-[11px] text-zinc-300">{clientDetail}</div>}
+            <div className="mt-0.5 space-y-0.5 text-[11px] text-zinc-300">
+              {c.org && <div>{c.org}</div>}
+              {c.phone && <div>Mobile: {c.phone}</div>}
+              {c.email && <div>{c.email}</div>}
+              {clientAddress && <div>{clientAddress}</div>}
+            </div>
           </div>
           <div className="flex shrink-0 gap-6 text-left sm:text-right">
             <div>
@@ -135,34 +125,42 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
                   {idx + 1}
                 </td>
                 <td className="border border-zinc-300 px-2 py-2 align-top">
-                  <div className="flex gap-2.5">
-                    {it.imageUrl && (
-                      <img
-                        src={it.imageUrl}
-                        alt=""
-                        className="h-16 w-16 shrink-0 rounded border object-cover"
-                      />
-                    )}
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="font-semibold">{it.name}</div>
-                      {it.location && <div className="text-zinc-600">Location: {it.location}</div>}
-                      {(it.material || it.finish) && (
-                        <div className="text-zinc-600">
-                          {[it.material, it.finish].filter(Boolean).join(" / ")}
-                        </div>
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2.5">
+                      {it.imageUrl && (
+                        <img
+                          src={it.imageUrl}
+                          alt=""
+                          className="h-16 w-16 shrink-0 rounded border object-cover"
+                        />
                       )}
-                      {!!it.steps && <div className="text-zinc-600">Steps: {it.steps}</div>}
-                      {it.specs
-                        .filter((s) => s.trim())
-                        .map((s, i) => (
-                          <div key={i} className="text-zinc-600">
-                            • {s}
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="font-semibold">{it.name}</div>
+                        {it.location && (
+                          <div className="text-zinc-600">Location: {it.location}</div>
+                        )}
+                        {(it.material || it.finish) && (
+                          <div className="text-zinc-600">
+                            {[it.material, it.finish].filter(Boolean).join(" / ")}
                           </div>
-                        ))}
-                      {!!it.weight && (
-                        <div className="text-zinc-600">Weight: {formatNum(it.weight, 2)} Kg</div>
-                      )}
+                        )}
+                        {!!it.steps && <div className="text-zinc-600">Steps: {it.steps}</div>}
+                        {!!it.weight && (
+                          <div className="text-zinc-600">Weight: {formatNum(it.weight, 2)} Kg</div>
+                        )}
+                      </div>
                     </div>
+                    {it.specs.some((s) => s.trim()) && (
+                      <div className="space-y-0.5">
+                        {it.specs
+                          .filter((s) => s.trim())
+                          .map((s, i) => (
+                            <div key={i} className="text-zinc-600">
+                              • {s}
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </td>
                 <td className="border border-zinc-300 px-2 py-2 text-center align-top">
@@ -211,23 +209,6 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
             <div>Total Area : {formatNum(quote.totals.area, 2)} sqft</div>
             <div>Total Weight : {formatNum(quote.totals.weight, 2)} Kg</div>
           </div>
-          {bankLines.length > 0 && (
-            <div>
-              <div
-                style={{ color: RED }}
-                className="text-[11px] font-bold uppercase tracking-wider"
-              >
-                Bank Details
-              </div>
-              <div className="mt-1 space-y-0.5 text-[12px]">
-                {bankLines.map(([k, v]) => (
-                  <div key={k}>
-                    <span className="inline-block w-20 text-zinc-500">{k}</span>: {v}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
         <div className="w-full shrink-0 sm:w-80">
           <div className="divide-y divide-zinc-200 border border-zinc-200">

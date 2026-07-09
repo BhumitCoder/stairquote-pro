@@ -72,21 +72,10 @@ export interface CompanyProfile {
   website: string;
   gst: string;
   salesPerson: string;
-  logoUrl?: string;
-  logoPath?: string;
-}
-
-export interface BankDetails {
-  accountName: string;
-  bankName: string;
-  branch: string;
-  accountNo: string;
-  ifsc: string;
 }
 
 export interface AppSettings {
   company: CompanyProfile;
-  bank: BankDetails;
   paymentTerms: string;
   termsAndConditions: string[];
   gstPercent: number;

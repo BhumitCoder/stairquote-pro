@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getSettings, saveSettings } from "@/lib/firestore";
-import { uploadFile, deleteFile } from "@/lib/storage";
 import type { AppSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +15,7 @@ import { toast } from "sonner";
 import {
   Trash2,
   Plus,
-  ImagePlus,
   Building2,
-  Landmark,
   FileText,
   ListChecks,
   SlidersHorizontal,
@@ -33,7 +30,6 @@ function SettingsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [s, setS] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [busy, setBusy] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["settings", user?.uid],
@@ -54,22 +50,6 @@ function SettingsPage() {
     onError: (e) => toast.error((e as Error).message),
   });
 
-  async function handleLogoUpload(file: File) {
-    setBusy(true);
-    try {
-      const oldPath = s.company.logoPath;
-      const path = `users/${user!.uid}/logo/${Date.now()}-${file.name}`;
-      const { url } = await uploadFile(path, file);
-      setS({ ...s, company: { ...s.company, logoUrl: url, logoPath: path } });
-      if (oldPath) void deleteFile(oldPath);
-      toast.success("Logo uploaded");
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const updateList = (key: "stairTypes" | "materials" | "units", list: string[]) =>
     setS({ ...s, dropdowns: { ...s.dropdowns, [key]: list } });
 
@@ -88,9 +68,6 @@ function SettingsPage() {
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
           <TabsTrigger value="company" className="gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Company
-          </TabsTrigger>
-          <TabsTrigger value="bank" className="gap-1.5">
-            <Landmark className="h-3.5 w-3.5" /> Bank
           </TabsTrigger>
           <TabsTrigger value="terms" className="gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Terms
@@ -114,40 +91,6 @@ function SettingsPage() {
               </p>
             </CardHeader>
             <CardContent className="grid gap-3">
-              <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
-                  {s.company.logoUrl ? (
-                    <img
-                      src={s.company.logoUrl}
-                      alt="logo"
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <ImagePlus className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Company Logo</div>
-                  <p className="text-xs text-muted-foreground">
-                    Shown top-right on every PDF. Falls back to the app logo if not set.
-                  </p>
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={busy}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleLogoUpload(f);
-                      }}
-                    />
-                    <Button asChild variant="outline" size="sm" className="mt-1">
-                      <span>{busy ? "Uploading…" : "Upload Logo"}</span>
-                    </Button>
-                  </label>
-                </div>
-              </div>
               <Field label="Business Name">
                 <Input
                   value={s.company.name}
@@ -203,51 +146,6 @@ function SettingsPage() {
                   />
                 </Field>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="bank" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-primary" /> Bank Details
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Printed on quotation PDFs so clients know where to send payment.
-              </p>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              <Field label="Account Name">
-                <Input
-                  value={s.bank.accountName}
-                  onChange={(e) => setS({ ...s, bank: { ...s.bank, accountName: e.target.value } })}
-                />
-              </Field>
-              <Field label="Bank Name">
-                <Input
-                  value={s.bank.bankName}
-                  onChange={(e) => setS({ ...s, bank: { ...s.bank, bankName: e.target.value } })}
-                />
-              </Field>
-              <Field label="Branch">
-                <Input
-                  value={s.bank.branch}
-                  onChange={(e) => setS({ ...s, bank: { ...s.bank, branch: e.target.value } })}
-                />
-              </Field>
-              <Field label="Account No.">
-                <Input
-                  value={s.bank.accountNo}
-                  onChange={(e) => setS({ ...s, bank: { ...s.bank, accountNo: e.target.value } })}
-                />
-              </Field>
-              <Field label="IFSC Code">
-                <Input
-                  value={s.bank.ifsc}
-                  onChange={(e) => setS({ ...s, bank: { ...s.bank, ifsc: e.target.value } })}
-                />
-              </Field>
             </CardContent>
           </Card>
         </TabsContent>

@@ -56,7 +56,6 @@ export async function getSettings(uid: string): Promise<AppSettings> {
     ...DEFAULT_SETTINGS,
     ...data,
     company: { ...DEFAULT_SETTINGS.company, ...data.company },
-    bank: { ...DEFAULT_SETTINGS.bank, ...data.bank },
     dropdowns: { ...DEFAULT_SETTINGS.dropdowns, ...data.dropdowns },
   };
 }

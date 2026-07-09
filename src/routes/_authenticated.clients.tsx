@@ -186,10 +186,13 @@ export function ClientDialog({
     state: "",
   });
 
-  // Reset on open
-  useState(() => {
-    if (initial) setForm(initial);
-  });
+  useEffect(() => {
+    if (open) {
+      setForm(
+        initial ?? { name: "", org: "", phone: "", email: "", address: "", city: "", state: "" },
+      );
+    }
+  }, [open, initial]);
 
   const saveMut = useMutation({
     mutationFn: async () => {

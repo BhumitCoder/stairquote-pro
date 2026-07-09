@@ -1,21 +1,21 @@
-// Firebase client init. Values come from Vite env vars (VITE_FIREBASE_*).
-// Web SDK config is publishable — safe in client bundle.
+// Firebase client init — config hardcoded directly.
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
+  apiKey: "AIzaSyBSfHugjPJ52QBQSuHWt9iGBFhq6wBoh5g",
+  authDomain: "hotel-7ac9f.firebaseapp.com",
+  projectId: "hotel-7ac9f",
+  storageBucket: "hotel-7ac9f.appspot.com",
+  messagingSenderId: "102297833385",
+  appId: "1:102297833385:web:f5605f4331c2b5f7173eb8",
+  measurementId: "G-1TZYLRZXES",
 };
 
 export function isFirebaseConfigured(): boolean {
-  return Boolean(config.apiKey && config.projectId && config.appId);
+  return true;
 }
 
 let _app: FirebaseApp | null = null;
@@ -39,7 +39,7 @@ export function fbAuth(): Auth {
   return _auth;
 }
 export function fbDb(): Firestore {
-  if (!_db) _db = getFirestore(ensureApp());
+  if (!_db) _db = getFirestore(ensureApp(), "demo");
   return _db;
 }
 export function fbStorage(): FirebaseStorage {

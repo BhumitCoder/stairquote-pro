@@ -153,18 +153,18 @@ function QuotationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Quote No.</TableHead>
+                  <TableHead className="w-[130px]">Quote No.</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead className="hidden md:table-cell">Phone</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="hidden sm:table-cell">Items</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden w-[140px] md:table-cell">Phone</TableHead>
+                  <TableHead className="w-[120px]">Date</TableHead>
+                  <TableHead className="hidden w-[80px] text-center sm:table-cell">Items</TableHead>
+                  <TableHead className="w-[160px] text-right">Amount</TableHead>
+                  <TableHead className="w-[130px] pl-8">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,13 +187,13 @@ function QuotationsPage() {
                       {q.clientSnapshot?.phone || "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
-                    <TableCell className="hidden text-muted-foreground sm:table-cell">
+                    <TableCell className="hidden text-center text-muted-foreground sm:table-cell">
                       {q.totals.itemCount}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
                       {formatINR(q.grandTotal)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="pl-8">
                       <StatusBadge status={q.status} />
                     </TableCell>
                   </TableRow>

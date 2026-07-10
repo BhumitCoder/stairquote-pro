@@ -141,18 +141,18 @@ function BillsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Bill No.</TableHead>
+                  <TableHead className="w-[130px]">Bill No.</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Received</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[120px]">Date</TableHead>
+                  <TableHead className="w-[150px] text-right">Amount</TableHead>
+                  <TableHead className="w-[140px] text-right">Received</TableHead>
+                  <TableHead className="w-[150px] text-right">Balance</TableHead>
+                  <TableHead className="w-[150px] pl-8">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -176,7 +176,7 @@ function BillsPage() {
                     <TableCell className="text-right font-semibold text-primary">
                       {formatINR(inv.balanceDue)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="pl-8">
                       <StatusBadge status={inv.status} />
                     </TableCell>
                   </TableRow>

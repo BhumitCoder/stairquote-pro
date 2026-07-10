@@ -326,14 +326,14 @@ function ClientProfile() {
                   No quotations match your search.
                 </div>
               ) : (
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Quote No.</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="w-[130px]">Status</TableHead>
+                      <TableHead className="w-[18%]">Quote No.</TableHead>
+                      <TableHead className="w-[24%]">Date</TableHead>
+                      <TableHead className="w-[14%] text-center">Items</TableHead>
+                      <TableHead className="w-[24%] text-right">Amount</TableHead>
+                      <TableHead className="w-[20%] pl-8">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -351,13 +351,13 @@ function ClientProfile() {
                         <TableCell className="text-muted-foreground">
                           {formatDate(q.date)}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-center text-muted-foreground">
                           {q.totals.itemCount}
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           {formatINR(q.grandTotal)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="pl-8">
                           <Select
                             value={q.status}
                             disabled={statusMut.isPending}
@@ -401,15 +401,15 @@ function ClientProfile() {
                   No bills match your search.
                 </div>
               ) : (
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Bill No.</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Received</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[15%]">Bill No.</TableHead>
+                      <TableHead className="w-[16%]">Date</TableHead>
+                      <TableHead className="w-[18%] text-right">Amount</TableHead>
+                      <TableHead className="w-[16%] text-right">Received</TableHead>
+                      <TableHead className="w-[18%] text-right">Balance</TableHead>
+                      <TableHead className="w-[17%] pl-8">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -436,7 +436,7 @@ function ClientProfile() {
                         <TableCell className="text-right font-semibold text-primary">
                           {formatINR(inv.balanceDue)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="pl-8">
                           <StatusBadge status={inv.status} />
                         </TableCell>
                       </TableRow>

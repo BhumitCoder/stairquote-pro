@@ -15,7 +15,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { fbDb } from "./firebase";
-import type { AppSettings, Client, Quotation } from "./types";
+import type { AppSettings, Client, Invoice, Quotation } from "./types";
 import { DEFAULT_SETTINGS } from "./settings-defaults";
 
 function userRoot(uid: string) {
@@ -55,6 +55,7 @@ export async function getSettings(uid: string): Promise<AppSettings> {
     ...DEFAULT_SETTINGS,
     ...data,
     company: { ...DEFAULT_SETTINGS.company, ...data.company },
+    bank: { ...DEFAULT_SETTINGS.bank, ...data.bank },
     dropdowns: { ...DEFAULT_SETTINGS.dropdowns, ...data.dropdowns },
   };
 }
@@ -150,6 +151,73 @@ export async function saveQuotation(
 
 export async function deleteQuotation(uid: string, id: string): Promise<void> {
   await deleteDoc(doc(fbDb(), "users", uid, "quotations", id));
+}
+
+// ============ Bills / Invoices ============
+export async function listInvoices(uid: string): Promise<Invoice[]> {
+  const q = query(collection(fbDb(), "users", uid, "invoices"), orderBy("date", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Invoice, "id">) }));
+}
+
+export async function listInvoicesByClient(uid: string, clientId: string): Promise<Invoice[]> {
+  // No orderBy: where(==) + orderBy(other field) would need a composite index.
+  const q = query(collection(fbDb(), "users", uid, "invoices"), where("clientId", "==", clientId));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Invoice, "id">) }))
+    .sort((a, b) => b.date - a.date);
+}
+
+export async function getInvoice(uid: string, id: string): Promise<Invoice | null> {
+  const snap = await getDoc(doc(fbDb(), "users", uid, "invoices", id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...(snap.data() as Omit<Invoice, "id">) };
+}
+
+export async function saveInvoice(
+  uid: string,
+  invoice: Omit<Invoice, "id"> & { id?: string },
+): Promise<string> {
+  if (invoice.id) {
+    const { id, ...rest } = invoice;
+    await updateDoc(doc(fbDb(), "users", uid, "invoices", id), {
+      ...toUpdatePayload(rest),
+      updatedAt: Date.now(),
+    });
+    return id;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, ...invoiceData } = invoice;
+  const ref = await addDoc(collection(fbDb(), "users", uid, "invoices"), {
+    ...pruneUndefined(invoiceData),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  return ref.id;
+}
+
+export async function deleteInvoice(uid: string, id: string): Promise<void> {
+  await deleteDoc(doc(fbDb(), "users", uid, "invoices", id));
+}
+
+// Global running bill number (INV-00001, …) using a transaction.
+export async function nextInvoiceNumber(uid: string, prefix = "INV"): Promise<string> {
+  const counterRef = doc(fbDb(), "users", uid, "counters", "invoices");
+  let seed = 0;
+  const existing = await getDoc(counterRef);
+  if (!existing.exists()) {
+    const snap = await getDocs(collection(fbDb(), "users", uid, "invoices"));
+    seed = snap.size;
+  }
+  const seq = await runTransaction(fbDb(), async (tx) => {
+    const snap = await tx.get(counterRef);
+    const current = snap.exists() ? (snap.data().seq as number) : seed;
+    const next = current + 1;
+    tx.set(counterRef, { seq: next }, { merge: true });
+    return next;
+  });
+  return `${prefix}-${String(seq).padStart(5, "0")}`;
 }
 
 // Global running quote number (Q-00001, Q-00002, …) using a transaction.

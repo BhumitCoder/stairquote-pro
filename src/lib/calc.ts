@@ -1,4 +1,4 @@
-import type { Discount, QuoteItem, Quotation } from "./types";
+import type { Discount, Invoice, InvoiceStatus, QuoteItem, Quotation } from "./types";
 
 // Round to 2 decimals so every line and total on the PDF adds up exactly.
 export function round2(n: number): number {
@@ -34,6 +34,51 @@ export function recomputeQuotation(
     gstAmt,
     grandTotal,
     totals: { area, weight, itemCount: items.length },
+  };
+}
+
+// Recompute an invoice: same money math as a quotation, plus payment tracking.
+// Status is always derived from payments — never set by hand.
+export function recomputeInvoice(
+  inv: Omit<
+    Invoice,
+    | "subTotal"
+    | "discountAmt"
+    | "gstAmt"
+    | "grandTotal"
+    | "totals"
+    | "amountPaid"
+    | "balanceDue"
+    | "status"
+  >,
+): Invoice {
+  const items = inv.items.map((it) => ({ ...it, amount: computeItemAmount(it) }));
+  const subTotal = round2(items.reduce((s, it) => s + it.amount, 0));
+  const gstPercent = clampPercent(inv.gstPercent);
+  const discountAmt = calcDiscount(subTotal, inv.discount);
+  const taxable = round2(subTotal - discountAmt);
+  const gstAmt = round2((taxable * gstPercent) / 100);
+  const grandTotal = round2(taxable + gstAmt);
+  const area = round2(
+    items.reduce((s, it) => s + (it.rateMode === "lumpsum" ? 0 : it.measureValue * it.qty), 0),
+  );
+  const weight = round2(items.reduce((s, it) => s + (it.weight ?? 0) * it.qty, 0));
+  const amountPaid = round2(inv.payments.reduce((s, p) => s + (p.amount || 0), 0));
+  const balanceDue = round2(Math.max(0, grandTotal - amountPaid));
+  const status: InvoiceStatus =
+    amountPaid <= 0 ? "Unpaid" : amountPaid >= grandTotal - 0.005 ? "Paid" : "Partial";
+  return {
+    ...inv,
+    items,
+    gstPercent,
+    subTotal,
+    discountAmt,
+    gstAmt,
+    grandTotal,
+    totals: { area, weight, itemCount: items.length },
+    amountPaid,
+    balanceDue,
+    status,
   };
 }
 

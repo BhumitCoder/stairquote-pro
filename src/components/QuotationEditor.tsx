@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import {
   listClients,
@@ -8,6 +8,7 @@ import {
   saveQuotation,
   nextQuoteNumber,
   deleteQuotation,
+  listInvoices,
 } from "@/lib/firestore";
 import { uploadFile, deleteFile } from "@/lib/storage";
 import { blankItem, nextItemCode, recomputeQuotation } from "@/lib/calc";
@@ -41,6 +42,7 @@ import {
   ChevronDown,
   ArrowLeft,
   Loader2,
+  ReceiptText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -81,6 +83,14 @@ export function QuotationEditor({
   useEffect(() => {
     if (!initial) setGstPct(settings.gstPercent);
   }, [settings.gstPercent, initial]);
+
+  // Bills already raised from this quotation — shown so nobody double-bills.
+  const { data: allInvoices = [] } = useQuery({
+    queryKey: ["invoices", user?.uid],
+    queryFn: () => listInvoices(user!.uid),
+    enabled: !!user && !!initial,
+  });
+  const linkedBills = initial ? allInvoices.filter((i) => i.quotationId === initial.id) : [];
 
   const client = clients.find((c) => c.id === clientId);
 
@@ -377,6 +387,26 @@ export function QuotationEditor({
               </div>
             </div>
 
+            {linkedBills.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-2.5 text-sm">
+                <ReceiptText className="h-4 w-4 shrink-0 text-success" />
+                <span>
+                  {linkedBills.length === 1 ? "A bill has" : `${linkedBills.length} bills have`}{" "}
+                  already been created from this quotation:
+                </span>
+                {linkedBills.map((b) => (
+                  <Link
+                    key={b.id}
+                    to="/bills/$id"
+                    params={{ id: b.id }}
+                    className="font-semibold text-success hover:underline"
+                  >
+                    {b.number}
+                  </Link>
+                ))}
+              </div>
+            )}
+
             <div>
               <div className="mb-2 text-sm font-medium text-muted-foreground">
                 Quotation Preview
@@ -401,6 +431,25 @@ export function QuotationEditor({
                     <Trash2 className="mr-1 h-4 w-4" />
                   )}
                   {delMut.isPending ? "Deleting…" : "Delete"}
+                </Button>
+              )}
+              {initial && (
+                <Button
+                  variant="outline"
+                  className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                  onClick={() => {
+                    if (
+                      linkedBills.length > 0 &&
+                      !confirm(
+                        `${linkedBills.map((b) => b.number).join(", ")} already exists for this quotation. Create another bill?`,
+                      )
+                    )
+                      return;
+                    nav({ to: "/bills/new", search: { quote: initial.id } });
+                  }}
+                >
+                  <ReceiptText className="mr-1 h-4 w-4" />
+                  {linkedBills.length > 0 ? "Create Another Bill" : "Create Bill"}
                 </Button>
               )}
               <Button variant="outline" onClick={() => saveMut.mutate()} disabled={actionBusy}>
@@ -484,7 +533,7 @@ function TotalsRow({
   );
 }
 
-function ItemEditor({
+export function ItemEditor({
   index,
   item,
   settings,

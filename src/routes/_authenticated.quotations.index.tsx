@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TablePagination } from "@/components/TablePagination";
 import { formatINR, formatDate } from "@/lib/format";
 import type { QuoteStatus } from "@/lib/types";
 import {
@@ -17,8 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, PlusCircle, FileText, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Search, PlusCircle, FileText } from "lucide-react";
 
 const searchSchema = z.object({
   page: z.number().optional(),
@@ -30,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/quotations/")({
 });
 
 const STATUS_OPTIONS: (QuoteStatus | "All")[] = ["All", "Draft", "Sent", "Accepted", "Rejected"];
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 10;
 
 function QuotationsPage() {
   const { user } = useAuth();
@@ -125,13 +133,9 @@ function QuotationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="space-y-3 rounded-xl border bg-card p-4">
-              <div className="h-5 w-32 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-            </div>
+            <div key={i} className="h-14 animate-pulse rounded-lg border bg-muted" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -149,83 +153,61 @@ function QuotationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {paged.map((q) => (
-              <Link key={q.id} to="/quotations/$id" params={{ id: q.id }}>
-                <Card className="h-full transition-shadow hover:shadow-md">
-                  <CardContent className="flex h-full flex-col gap-2 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-semibold">{q.number}</span>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quote No.</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="hidden md:table-cell">Phone</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden sm:table-cell">Items</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.map((q) => (
+                  <TableRow
+                    key={q.id}
+                    className="cursor-pointer"
+                    onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
+                  >
+                    <TableCell className="font-medium text-primary">{q.number}</TableCell>
+                    <TableCell className="max-w-[220px]">
+                      <div className="truncate font-medium">{q.clientSnapshot?.name || "—"}</div>
+                      {q.clientSnapshot?.org && (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {q.clientSnapshot.org}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground md:table-cell">
+                      {q.clientSnapshot?.phone || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">
+                      {q.totals.itemCount}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {formatINR(q.grandTotal)}
+                    </TableCell>
+                    <TableCell>
                       <StatusBadge status={q.status} />
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Building2 className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{q.clientSnapshot?.name || "—"}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{formatDate(q.date)}</div>
-                    <div className="mt-auto flex items-end justify-between pt-2">
-                      <span className="text-xs text-muted-foreground">
-                        {q.totals.itemCount} item{q.totals.itemCount === 1 ? "" : "s"}
-                      </span>
-                      <span className="text-lg font-bold text-primary">
-                        {formatINR(q.grandTotal)}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={currentPage <= 1}
-                  onClick={() => goToPage(currentPage - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                    .map((p, i, arr) => (
-                      <span key={p} className="flex items-center">
-                        {i > 0 && arr[i - 1] !== p - 1 && (
-                          <span className="px-1 text-xs text-muted-foreground">…</span>
-                        )}
-                        <button
-                          onClick={() => goToPage(p)}
-                          className={cn(
-                            "h-8 min-w-8 rounded-md px-2 text-sm font-medium transition-colors",
-                            p === currentPage
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-accent",
-                          )}
-                        >
-                          {p}
-                        </button>
-                      </span>
-                    ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => goToPage(currentPage + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <TablePagination
+              page={currentPage}
+              pageSize={PAGE_SIZE}
+              total={filtered.length}
+              onChange={goToPage}
+            />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

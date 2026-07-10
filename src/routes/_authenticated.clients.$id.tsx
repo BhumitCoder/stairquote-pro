@@ -2,7 +2,13 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { getClient, listQuotationsByClient, saveClient, saveQuotation } from "@/lib/firestore";
+import {
+  getClient,
+  listQuotationsByClient,
+  listInvoicesByClient,
+  saveClient,
+  saveQuotation,
+} from "@/lib/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +28,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -49,6 +56,8 @@ import {
   PhoneCall,
   MessageCircle,
   Search,
+  ReceiptText,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -75,8 +84,15 @@ function ClientProfile() {
     queryFn: () => listQuotationsByClient(user!.uid, id),
     enabled: !!user,
   });
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["client-invoices", user?.uid, id],
+    queryFn: () => listInvoicesByClient(user!.uid, id),
+    enabled: !!user,
+  });
 
   const totalValue = quotes.reduce((s, q) => s + q.grandTotal, 0);
+  const totalBilled = invoices.reduce((s, i) => s + i.grandTotal, 0);
+  const totalOutstanding = invoices.reduce((s, i) => s + i.balanceDue, 0);
 
   const filteredQuotes = quotes.filter((q) => {
     const t = quoteSearch.trim().toLowerCase();
@@ -86,6 +102,18 @@ function ClientProfile() {
       q.status.toLowerCase().includes(t) ||
       formatDate(q.date).toLowerCase().includes(t) ||
       String(q.grandTotal).includes(t)
+    );
+  });
+
+  const filteredInvoices = invoices.filter((inv) => {
+    const t = quoteSearch.trim().toLowerCase();
+    if (!t) return true;
+    return (
+      inv.number.toLowerCase().includes(t) ||
+      inv.status.toLowerCase().includes(t) ||
+      (inv.quotationNumber || "").toLowerCase().includes(t) ||
+      formatDate(inv.date).toLowerCase().includes(t) ||
+      String(inv.grandTotal).includes(t)
     );
   });
 
@@ -134,88 +162,99 @@ function ClientProfile() {
       )}
 
       <Card>
-        <CardContent className="p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold">{client.name}</h1>
-              {client.org && (
-                <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
-                  <Building2 className="h-4 w-4" /> {client.org}
-                </p>
-              )}
-              <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-                {client.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3.5 w-3.5" /> {client.phone}
-                  </div>
-                )}
-                {client.email && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5" /> {client.email}
-                  </div>
-                )}
-                {(client.address || client.city || client.state) && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      {[client.address, client.city, client.state].filter(Boolean).join(", ")}
-                    </span>
-                  </div>
+        <CardContent className="p-5 sm:p-6">
+          {/* Top row: identity left, actions right */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-primary/10 text-xl font-bold uppercase text-primary">
+                {client.name[0] ?? "C"}
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-bold">{client.name}</h1>
+                {client.org && (
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Building2 className="h-3.5 w-3.5" /> {client.org}
+                  </p>
                 )}
               </div>
-
-              <button
-                onClick={() => setCbOpen(true)}
-                className={cn(
-                  "mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                  cbToday
-                    ? "bg-primary/15 text-primary hover:bg-primary/25"
-                    : cbOverdue
-                      ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
-                      : client.callbackDate
-                        ? "bg-muted text-muted-foreground hover:bg-accent"
-                        : "border border-dashed text-muted-foreground hover:bg-accent",
-                )}
-              >
-                <CalendarClock className="h-3.5 w-3.5" />
-                {client.callbackDate
-                  ? `Callback: ${formatDate(client.callbackDate)}${cbOverdue ? " (overdue)" : ""}`
-                  : "Set callback date"}
-              </button>
             </div>
 
-            <div className="flex flex-col gap-2 sm:items-end">
-              <Button
-                size="lg"
-                className="h-12 gap-2"
-                onClick={() => nav({ to: "/quotations/new", search: { client: client.id } })}
-              >
-                <PlusCircle className="h-5 w-5" /> New Quotation
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
               {client.phone && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild>
+                <>
+                  <Button variant="outline" className="h-10" asChild>
                     <a href={`tel:${client.phone}`}>
-                      <Phone className="mr-1.5 h-3.5 w-3.5" /> Call
+                      <Phone className="mr-1.5 h-4 w-4" /> Call
                     </a>
                   </Button>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" className="h-10" asChild>
                     <a
                       href={`https://wa.me/${client.phone.replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> WhatsApp
+                      <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
                     </a>
                   </Button>
-                </div>
+                </>
               )}
+              <Button
+                variant="outline"
+                className="h-10 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                onClick={() => nav({ to: "/bills/new", search: { client: client.id } })}
+              >
+                <ReceiptText className="mr-1.5 h-4 w-4" /> New Bill
+              </Button>
+              <Button
+                className="h-10"
+                onClick={() => nav({ to: "/quotations/new", search: { client: client.id } })}
+              >
+                <PlusCircle className="mr-1.5 h-4 w-4" /> New Quotation
+              </Button>
             </div>
+          </div>
+
+          {/* Bottom strip: contact details + callback chip */}
+          <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-sm text-muted-foreground">
+            {client.phone && (
+              <span className="flex items-center gap-1.5">
+                <Phone className="h-3.5 w-3.5" /> {client.phone}
+              </span>
+            )}
+            {client.email && (
+              <span className="flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" /> {client.email}
+              </span>
+            )}
+            {(client.address || client.city || client.state) && (
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                {[client.address, client.city, client.state].filter(Boolean).join(", ")}
+              </span>
+            )}
+            <button
+              onClick={() => setCbOpen(true)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                cbToday
+                  ? "bg-primary/15 text-primary hover:bg-primary/25"
+                  : cbOverdue
+                    ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+                    : client.callbackDate
+                      ? "bg-muted text-muted-foreground hover:bg-accent"
+                      : "border border-dashed text-muted-foreground hover:bg-accent",
+              )}
+            >
+              <CalendarClock className="h-3.5 w-3.5" />
+              {client.callbackDate
+                ? `Callback: ${formatDate(client.callbackDate)}${cbOverdue ? " (overdue)" : ""}`
+                : "Set callback date"}
+            </button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{quotes.length}</div>
@@ -224,98 +263,190 @@ function ClientProfile() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">{formatINR(totalValue)}</div>
-            <div className="text-xs text-muted-foreground">Total Business Value</div>
+            <div className="text-2xl font-bold">{formatINR(totalValue)}</div>
+            <div className="text-xs text-muted-foreground">Quoted Value</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-success">{formatINR(totalBilled)}</div>
+            <div className="text-xs text-muted-foreground">Billed</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-primary">{formatINR(totalOutstanding)}</div>
+            <div className="text-xs text-muted-foreground">Outstanding</div>
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-lg">Quotation History</CardTitle>
-            {quotes.length > 0 && (
+        <Tabs defaultValue="quotations">
+          <CardHeader className="pb-0">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <TabsList className="h-auto bg-muted/60 p-1">
+                <TabsTrigger value="quotations" className="gap-1.5 px-4 py-2">
+                  <FileText className="h-3.5 w-3.5" /> Quotations
+                  <span className="ml-1 rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground">
+                    {quotes.length}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="bills" className="gap-1.5 px-4 py-2">
+                  <ReceiptText className="h-3.5 w-3.5" /> Bills
+                  <span className="ml-1 rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground">
+                    {invoices.length}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
               <div className="relative sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search quote no., status, date…"
+                  placeholder="Search no., status, date…"
                   value={quoteSearch}
                   onChange={(e) => setQuoteSearch(e.target.value)}
                   className="h-9 pl-9"
                 />
               </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {quotesError ? (
-            <div className="p-6 text-sm text-destructive">
-              Could not load quotations: {(quotesError as Error).message}
             </div>
-          ) : quotes.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">
-              No quotations yet for this client.
-            </div>
-          ) : filteredQuotes.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">
-              No quotations match your search.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Quote No.</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="w-[130px]">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredQuotes.map((q) => (
-                  <TableRow key={q.id}>
-                    <TableCell>
-                      <Link
-                        to="/quotations/$id"
-                        params={{ id: q.id }}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {q.number}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
-                    <TableCell className="text-muted-foreground">{q.totals.itemCount}</TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {formatINR(q.grandTotal)}
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={q.status}
-                        disabled={statusMut.isPending}
-                        onValueChange={(v) =>
-                          statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
-                        }
-                      >
-                        <SelectTrigger className="h-8 w-[110px] shrink-0">
-                          <SelectValue>
-                            <StatusBadge status={q.status} />
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
+          </CardHeader>
+
+          <TabsContent value="quotations" className="mt-3">
+            <CardContent className="p-0">
+              {quotesError ? (
+                <div className="p-6 text-sm text-destructive">
+                  Could not load quotations: {(quotesError as Error).message}
+                </div>
+              ) : quotes.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No quotations yet for this client.
+                </div>
+              ) : filteredQuotes.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No quotations match your search.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Quote No.</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="w-[130px]">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredQuotes.map((q) => (
+                      <TableRow key={q.id}>
+                        <TableCell>
+                          <Link
+                            to="/quotations/$id"
+                            params={{ id: q.id }}
+                            className="font-medium text-primary hover:underline"
+                          >
+                            {q.number}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(q.date)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {q.totals.itemCount}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatINR(q.grandTotal)}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={q.status}
+                            disabled={statusMut.isPending}
+                            onValueChange={(v) =>
+                              statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-[110px] shrink-0">
+                              <SelectValue>
+                                <StatusBadge status={q.status} />
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map(
+                                (s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {s}
+                                  </SelectItem>
+                                ),
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </TabsContent>
+
+          <TabsContent value="bills" className="mt-3">
+            <CardContent className="p-0">
+              {invoices.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No bills yet for this client. Open an accepted quotation and press "Create Bill",
+                  or use the "New Bill" button above.
+                </div>
+              ) : filteredInvoices.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No bills match your search.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bill No.</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Received</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvoices.map((inv) => (
+                      <TableRow key={inv.id}>
+                        <TableCell>
+                          <Link
+                            to="/bills/$id"
+                            params={{ id: inv.id }}
+                            className="font-medium text-primary hover:underline"
+                          >
+                            {inv.number}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(inv.date)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatINR(inv.grandTotal)}
+                        </TableCell>
+                        <TableCell className="text-right text-success">
+                          {formatINR(inv.amountPaid)}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-primary">
+                          {formatINR(inv.balanceDue)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={inv.status} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </TabsContent>
+        </Tabs>
       </Card>
 
       <CallbackDialog

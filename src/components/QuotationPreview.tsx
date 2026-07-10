@@ -1,18 +1,34 @@
-import type { AppSettings, Quotation } from "@/lib/types";
+import type { AppSettings, Invoice, Quotation } from "@/lib/types";
 import { formatINR, formatNum, formatDate } from "@/lib/format";
 import { BRAND_TAGLINE } from "@/lib/settings-defaults";
 
 // On-screen replica of the generated PDF (see lib/pdf.ts) — instant, crisp and
 // mobile-friendly, unlike embedding the PDF blob in an iframe.
+// Renders both quotations and bills (tax invoices) — pass either document.
 const RED = "#E8484D";
 const DARK = "#1c1c26";
 const DARK_MID = "#2d2d3a";
 
-export function QuotationPreview({ quote, settings }: { quote: Quotation; settings: AppSettings }) {
+export function QuotationPreview({
+  quote,
+  settings,
+}: {
+  quote: Quotation | Invoice;
+  settings: AppSettings;
+}) {
   const c = quote.clientSnapshot;
   const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
+  const inv = "payments" in quote ? (quote as Invoice) : null;
 
   const clientAddress = [c.address, c.city, c.state].filter(Boolean).join(", ");
+  const bankLines = [
+    settings.bank.accountName && ["A/C Name", settings.bank.accountName],
+    settings.bank.bankName && ["Bank", settings.bank.bankName],
+    settings.bank.branch && ["Branch", settings.bank.branch],
+    settings.bank.accountNo && ["A/C No", settings.bank.accountNo],
+    settings.bank.ifsc && ["IFSC", settings.bank.ifsc],
+    settings.bank.upiId && ["UPI", settings.bank.upiId],
+  ].filter(Boolean) as [string, string][];
 
   return (
     <div className="overflow-hidden bg-white text-[13px] leading-snug text-zinc-800 shadow-sm">
@@ -71,9 +87,12 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
           <div className="flex shrink-0 gap-6 text-left sm:text-right">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                Quote No
+                {inv ? "Bill No" : "Quote No"}
               </div>
               <div className="mt-0.5 text-sm font-semibold">{quote.number}</div>
+              {inv?.quotationNumber && (
+                <div className="mt-0.5 text-[10px] text-zinc-400">Ref: {inv.quotationNumber}</div>
+              )}
             </div>
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
@@ -99,7 +118,7 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
           style={{ color: RED, borderColor: RED }}
           className="inline-block border-b-2 pb-0.5 text-base font-bold uppercase tracking-wider"
         >
-          {settings.docTitle}
+          {inv ? "Tax Invoice" : settings.docTitle}
         </span>
       </div>
 
@@ -213,6 +232,23 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
             <div>Total Area : {formatNum(quote.totals.area, 2)} sqft</div>
             <div>Total Weight : {formatNum(quote.totals.weight, 2)} Kg</div>
           </div>
+          {inv && bankLines.length > 0 && (
+            <div>
+              <div
+                style={{ color: RED }}
+                className="text-[11px] font-bold uppercase tracking-wider"
+              >
+                Bank / Payment Details
+              </div>
+              <div className="mt-1 space-y-0.5 text-[12px]">
+                {bankLines.map(([k, v]) => (
+                  <div key={k}>
+                    <span className="inline-block w-20 text-zinc-500">{k}</span>: {v}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="w-full shrink-0 sm:w-80">
           <div className="divide-y divide-zinc-200 border border-zinc-200">
@@ -240,6 +276,21 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
               <span>GRAND TOTAL</span>
               <span>{formatINR(quote.grandTotal)}</span>
             </div>
+            {inv && (
+              <>
+                <div className="flex items-center justify-between bg-zinc-50 px-3 py-2 text-emerald-700">
+                  <span>Received</span>
+                  <span>- {formatINR(inv.amountPaid)}</span>
+                </div>
+                <div
+                  style={{ background: DARK }}
+                  className="flex items-center justify-between px-3 py-2.5 font-bold text-white"
+                >
+                  <span>BALANCE DUE</span>
+                  <span>{formatINR(inv.balanceDue)}</span>
+                </div>
+              </>
+            )}
             <div className="flex items-center justify-between bg-zinc-100 px-3 py-2 text-[12px]">
               <span>Avg Price / sqft</span>
               <span>{formatINR(avg)}</span>
@@ -248,8 +299,30 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
         </div>
       </div>
 
-      {/* Loading notice */}
-      {settings.loadingNotice && (
+      {/* Payment history — bills only */}
+      {inv && inv.payments.length > 0 && (
+        <div className="px-4 pt-6 sm:px-6">
+          <SectionHeading>Payment History</SectionHeading>
+          <div className="mt-2.5 space-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700">
+            {inv.payments.map((p) => (
+              <div key={p.id} className="flex items-start gap-2">
+                <span
+                  style={{ background: RED }}
+                  className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
+                />
+                <span className="min-w-0 flex-1">
+                  {formatDate(p.date)} &nbsp;|&nbsp; {p.mode}
+                  {p.note ? ` — ${p.note}` : ""}
+                </span>
+                <span className="shrink-0 font-semibold">{formatINR(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Loading notice — quotations only */}
+      {!inv && settings.loadingNotice && (
         <div className="px-4 pt-6 sm:px-6">
           <div
             style={{ borderLeftColor: RED }}
@@ -260,8 +333,8 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
         </div>
       )}
 
-      {/* Payment terms — soft panel, one bulleted row per line */}
-      {settings.paymentTerms && (
+      {/* Payment terms — quotations only; a bill shows actual payments instead */}
+      {!inv && settings.paymentTerms && (
         <div className="px-4 pt-6 sm:px-6">
           <SectionHeading>Payment Terms</SectionHeading>
           <div className="mt-2.5 space-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700">
@@ -282,8 +355,8 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
         </div>
       )}
 
-      {/* Terms & conditions — two columns, red numbering */}
-      {settings.termsAndConditions.some((t) => t.trim()) && (
+      {/* Terms & conditions — quotations only */}
+      {!inv && settings.termsAndConditions.some((t) => t.trim()) && (
         <div className="px-4 pt-6 sm:px-6">
           <SectionHeading>Terms &amp; Conditions</SectionHeading>
           <ol className="mt-2.5 grid gap-x-8 gap-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700 sm:grid-cols-2">
@@ -305,7 +378,9 @@ export function QuotationPreview({ quote, settings }: { quote: Quotation; settin
       {/* Acceptance + signatures */}
       <div className="px-4 pt-7 sm:px-6">
         <p className="text-[11px] italic text-zinc-500">
-          I hereby accept the estimate as per above mentioned price and specifications.
+          {inv
+            ? "Received the above goods / services in good order and condition."
+            : "I hereby accept the estimate as per above mentioned price and specifications."}
         </p>
         <div className="mt-6 flex items-end justify-between gap-6 text-[11px]">
           <div>

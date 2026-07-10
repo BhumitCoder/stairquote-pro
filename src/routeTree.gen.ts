@@ -15,9 +15,12 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedQuotationsIndexRouteImport } from './routes/_authenticated.quotations.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
+import { Route as AuthenticatedBillsIndexRouteImport } from './routes/_authenticated.bills.index'
 import { Route as AuthenticatedQuotationsNewRouteImport } from './routes/_authenticated.quotations.new'
 import { Route as AuthenticatedQuotationsIdRouteImport } from './routes/_authenticated.quotations.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated.clients.$id'
+import { Route as AuthenticatedBillsNewRouteImport } from './routes/_authenticated.bills.new'
+import { Route as AuthenticatedBillsIdRouteImport } from './routes/_authenticated.bills.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -50,6 +53,11 @@ const AuthenticatedClientsIndexRoute =
     path: '/clients/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedBillsIndexRoute = AuthenticatedBillsIndexRouteImport.update({
+  id: '/bills/',
+  path: '/bills/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedQuotationsNewRoute =
   AuthenticatedQuotationsNewRouteImport.update({
     id: '/quotations/new',
@@ -67,14 +75,27 @@ const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
   path: '/clients/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedBillsNewRoute = AuthenticatedBillsNewRouteImport.update({
+  id: '/bills/new',
+  path: '/bills/new',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedBillsIdRoute = AuthenticatedBillsIdRouteImport.update({
+  id: '/bills/$id',
+  path: '/bills/$id',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/bills/$id': typeof AuthenticatedBillsIdRoute
+  '/bills/new': typeof AuthenticatedBillsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/quotations/$id': typeof AuthenticatedQuotationsIdRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/bills/': typeof AuthenticatedBillsIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/quotations/': typeof AuthenticatedQuotationsIndexRoute
 }
@@ -82,9 +103,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/bills/$id': typeof AuthenticatedBillsIdRoute
+  '/bills/new': typeof AuthenticatedBillsNewRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/quotations/$id': typeof AuthenticatedQuotationsIdRoute
   '/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/bills': typeof AuthenticatedBillsIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/quotations': typeof AuthenticatedQuotationsIndexRoute
 }
@@ -94,9 +118,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/bills/$id': typeof AuthenticatedBillsIdRoute
+  '/_authenticated/bills/new': typeof AuthenticatedBillsNewRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/quotations/$id': typeof AuthenticatedQuotationsIdRoute
   '/_authenticated/quotations/new': typeof AuthenticatedQuotationsNewRoute
+  '/_authenticated/bills/': typeof AuthenticatedBillsIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/quotations/': typeof AuthenticatedQuotationsIndexRoute
 }
@@ -106,9 +133,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/settings'
+    | '/bills/$id'
+    | '/bills/new'
     | '/clients/$id'
     | '/quotations/$id'
     | '/quotations/new'
+    | '/bills/'
     | '/clients/'
     | '/quotations/'
   fileRoutesByTo: FileRoutesByTo
@@ -116,9 +146,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/settings'
     | '/'
+    | '/bills/$id'
+    | '/bills/new'
     | '/clients/$id'
     | '/quotations/$id'
     | '/quotations/new'
+    | '/bills'
     | '/clients'
     | '/quotations'
   id:
@@ -127,9 +160,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/_authenticated/bills/$id'
+    | '/_authenticated/bills/new'
     | '/_authenticated/clients/$id'
     | '/_authenticated/quotations/$id'
     | '/_authenticated/quotations/new'
+    | '/_authenticated/bills/'
     | '/_authenticated/clients/'
     | '/_authenticated/quotations/'
   fileRoutesById: FileRoutesById
@@ -183,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/bills/': {
+      id: '/_authenticated/bills/'
+      path: '/bills'
+      fullPath: '/bills/'
+      preLoaderRoute: typeof AuthenticatedBillsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/quotations/new': {
       id: '/_authenticated/quotations/new'
       path: '/quotations/new'
@@ -204,15 +247,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/bills/new': {
+      id: '/_authenticated/bills/new'
+      path: '/bills/new'
+      fullPath: '/bills/new'
+      preLoaderRoute: typeof AuthenticatedBillsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/bills/$id': {
+      id: '/_authenticated/bills/$id'
+      path: '/bills/$id'
+      fullPath: '/bills/$id'
+      preLoaderRoute: typeof AuthenticatedBillsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedBillsIdRoute: typeof AuthenticatedBillsIdRoute
+  AuthenticatedBillsNewRoute: typeof AuthenticatedBillsNewRoute
   AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
   AuthenticatedQuotationsIdRoute: typeof AuthenticatedQuotationsIdRoute
   AuthenticatedQuotationsNewRoute: typeof AuthenticatedQuotationsNewRoute
+  AuthenticatedBillsIndexRoute: typeof AuthenticatedBillsIndexRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedQuotationsIndexRoute: typeof AuthenticatedQuotationsIndexRoute
 }
@@ -220,9 +280,12 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedBillsIdRoute: AuthenticatedBillsIdRoute,
+  AuthenticatedBillsNewRoute: AuthenticatedBillsNewRoute,
   AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
   AuthenticatedQuotationsIdRoute: AuthenticatedQuotationsIdRoute,
   AuthenticatedQuotationsNewRoute: AuthenticatedQuotationsNewRoute,
+  AuthenticatedBillsIndexRoute: AuthenticatedBillsIndexRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedQuotationsIndexRoute: AuthenticatedQuotationsIndexRoute,
 }

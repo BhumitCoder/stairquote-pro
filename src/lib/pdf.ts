@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
-import type { AppSettings, Quotation } from "./types";
+import type { AppSettings, Invoice, Quotation } from "./types";
 import { formatDate } from "./format";
 import { BRAND_TAGLINE } from "./settings-defaults";
 import { urlToDataUrl } from "./storage";
@@ -63,7 +63,7 @@ interface ImageCache {
   [url: string]: string | null;
 }
 
-async function loadImages(quote: Quotation): Promise<ImageCache> {
+async function loadImages(quote: Quotation | Invoice): Promise<ImageCache> {
   const cache: ImageCache = {};
   const urls = new Set<string>();
   urls.add(APP_LOGO_URL);
@@ -78,7 +78,12 @@ async function loadImages(quote: Quotation): Promise<ImageCache> {
 
 // ─── Main PDF generator ───────────────────────────────────────────────────────
 
-export async function generateQuotationPdf(quote: Quotation, settings: AppSettings): Promise<Blob> {
+// Renders both quotations and bills (tax invoices) — pass either document.
+export async function generateQuotationPdf(
+  quote: Quotation | Invoice,
+  settings: AppSettings,
+): Promise<Blob> {
+  const inv = "payments" in quote ? (quote as Invoice) : null;
   const images = await loadImages(quote);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -201,7 +206,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(160, 165, 190);
-  doc.text("QUOTE NO", pageW - margin - 55, headerH + 5.5);
+  doc.text(inv ? "BILL NO" : "QUOTE NO", pageW - margin - 55, headerH + 5.5);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...WHITE);
@@ -231,16 +236,28 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
 
   // ── DOCUMENT TITLE ─────────────────────────────────────────────────────────
   const titleY = headerH + stripH + 8;
+  const titleText = inv ? "TAX INVOICE" : settings.docTitle.toUpperCase();
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(...RED);
-  doc.text(safe(settings.docTitle.toUpperCase()), pageW / 2, titleY, { align: "center" });
+  doc.text(safe(titleText), pageW / 2, titleY, { align: "center" });
   // Underline
-  const titleText = settings.docTitle.toUpperCase();
   const titleW = doc.getStringUnitWidth(titleText) * 15 * 0.352778;
   doc.setDrawColor(...RED);
   doc.setLineWidth(0.8);
   doc.line(pageW / 2 - titleW / 2, titleY + 1.5, pageW / 2 + titleW / 2, titleY + 1.5);
+
+  // Linked quotation reference under the title (bills only)
+  let tableStartY = titleY + 5;
+  if (inv?.quotationNumber) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 140);
+    doc.text(`Ref. Quotation: ${safe(inv.quotationNumber)}`, pageW / 2, titleY + 6, {
+      align: "center",
+    });
+    tableStartY = titleY + 9;
+  }
 
   // ── ITEMS TABLE ────────────────────────────────────────────────────────────
   const rowImgH = 24;
@@ -280,7 +297,7 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   });
 
   autoTable(doc, {
-    startY: titleY + 5,
+    startY: tableStartY,
     head: [["#", "Description", "Width", "Height", "Qty", "Sqft/Rft", "Rate", "Amount"]],
     body: body as never,
     // Never slice an item row in half — move the whole row to the next page.
@@ -428,14 +445,15 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   };
 
   // ── BOTTOM SECTION: Summary left | Totals right ───────────────────────────
-  ensureSpace(38); // exact totals-box height — never split across pages
+  // Bills add two payment rows (16mm) — the box is never split across pages.
+  ensureSpace(inv ? 54 : 38);
   const boxTop = y;
   const leftW = contentW * 0.52;
   const rightW2 = contentW * 0.48;
   const rightX2 = margin + leftW;
   const rowH = 7;
 
-  // LEFT — summary stats
+  // LEFT — summary stats (+ bank details on bills)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...TEXT);
@@ -449,6 +467,34 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   for (const l of summaryLines) {
     doc.text(l, margin, ly + 4);
     ly += 5.5;
+  }
+
+  if (inv) {
+    const bankLines = [
+      settings.bank.accountName && `A/C Name : ${settings.bank.accountName}`,
+      settings.bank.bankName && `Bank     : ${settings.bank.bankName}`,
+      settings.bank.branch && `Branch   : ${settings.bank.branch}`,
+      settings.bank.accountNo && `A/C No   : ${settings.bank.accountNo}`,
+      settings.bank.ifsc && `IFSC     : ${settings.bank.ifsc}`,
+      settings.bank.upiId && `UPI      : ${settings.bank.upiId}`,
+    ]
+      .filter(Boolean)
+      .map((l) => safe(l as string));
+    if (bankLines.length > 0) {
+      ly += 4;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...RED);
+      doc.text("BANK / PAYMENT DETAILS", margin, ly);
+      ly += 4.5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT);
+      for (const l of bankLines) {
+        doc.text(l, margin, ly);
+        ly += 4;
+      }
+    }
   }
 
   // RIGHT — totals breakdown
@@ -488,6 +534,27 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   doc.text(pdfINR(quote.grandTotal), rightX2 + rightW2 - 3, ty + 5.5, { align: "right" });
   ty += gtH;
 
+  // Bills: amount received + balance due
+  if (inv) {
+    doc.setFillColor(...LIGHT_GRAY);
+    doc.rect(rightX2, ty, rightW2, rowH, "FD");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(16, 122, 87);
+    doc.text("Received", rightX2 + 3, ty + 4.8);
+    doc.text(`- ${pdfINR(inv.amountPaid)}`, rightX2 + rightW2 - 3, ty + 4.8, { align: "right" });
+    ty += rowH;
+
+    doc.setFillColor(...DARK);
+    doc.rect(rightX2, ty, rightW2, gtH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...WHITE);
+    doc.text("BALANCE DUE", rightX2 + 3, ty + 5.5);
+    doc.text(pdfINR(inv.balanceDue), rightX2 + rightW2 - 3, ty + 5.5, { align: "right" });
+    ty += gtH;
+  }
+
   // Avg price row
   doc.setFillColor(220, 220, 230);
   doc.rect(rightX2, ty, rightW2, rowH, "FD");
@@ -515,8 +582,40 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     y += 8;
   };
 
-  // ── LOADING NOTICE (only when set) ────────────────────────────────────────
-  if (settings.loadingNotice.trim()) {
+  // ── PAYMENT HISTORY (bills only) ──────────────────────────────────────────
+  if (inv && inv.payments.length > 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.4);
+    const payRows = inv.payments.map((p) => {
+      const left = safe(`${formatDate(p.date)}  |  ${p.mode}${p.note ? ` — ${p.note}` : ""}`);
+      return {
+        lines: doc.splitTextToSize(left, contentW - 50) as string[],
+        amount: pdfINR(p.amount),
+      };
+    });
+    const rowHs = payRows.map((r) => r.lines.length * 4.2 + 2.8);
+    const panelH = rowHs.reduce((a, b) => a + b, 0) + 3.5;
+    ensureSpace(8 + Math.min(panelH, pageH - margin - 24) + 4);
+    sectionHeading("PAYMENT HISTORY");
+    doc.setFillColor(...LIGHT_GRAY);
+    doc.roundedRect(margin, y, contentW, panelH, 1.6, 1.6, "F");
+    let py = y + 6;
+    for (let i = 0; i < payRows.length; i++) {
+      doc.setFillColor(...RED);
+      doc.circle(margin + 4.5, py - 1.1, 0.8, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.4);
+      doc.setTextColor(...TEXT);
+      doc.text(payRows[i].lines, margin + 8.5, py);
+      doc.setFont("helvetica", "bold");
+      doc.text(payRows[i].amount, margin + contentW - 4.5, py, { align: "right" });
+      py += rowHs[i];
+    }
+    y += panelH + 7;
+  }
+
+  // ── LOADING NOTICE (quotations only) ──────────────────────────────────────
+  if (!inv && settings.loadingNotice.trim()) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     const noticeLines = doc.splitTextToSize(safe(settings.loadingNotice), contentW - 12);
@@ -531,8 +630,8 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     y += noticeH + 7;
   }
 
-  // ── PAYMENT TERMS — soft panel, one bulleted row per line ─────────────────
-  if (settings.paymentTerms.trim()) {
+  // ── PAYMENT TERMS — quotations only; a bill shows actual payments instead ──
+  if (!inv && settings.paymentTerms.trim()) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.4);
     const ptRows = safe(settings.paymentTerms)
@@ -579,8 +678,8 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
     }
   }
 
-  // ── TERMS & CONDITIONS — two balanced columns when they fit ───────────────
-  const terms = settings.termsAndConditions.filter((t) => t.trim());
+  // ── TERMS & CONDITIONS — quotations only (quote-specific validity terms) ───
+  const terms = inv ? [] : settings.termsAndConditions.filter((t) => t.trim());
   if (terms.length > 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.2);
@@ -648,7 +747,9 @@ export async function generateQuotationPdf(quote: Quotation, settings: AppSettin
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8.5);
   const accept = doc.splitTextToSize(
-    "I hereby accept the estimate as per above mentioned price and specifications.",
+    inv
+      ? "Received the above goods / services in good order and condition."
+      : "I hereby accept the estimate as per above mentioned price and specifications.",
     contentW,
   ) as string[];
   // Exact block height: acceptance + gap + "For company" + line + label + thank-you.

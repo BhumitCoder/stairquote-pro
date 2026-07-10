@@ -17,6 +17,7 @@ import {
   Plus,
   Building2,
   FileText,
+  Landmark,
   ListChecks,
   SlidersHorizontal,
   Save,
@@ -68,6 +69,9 @@ function SettingsPage() {
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
           <TabsTrigger value="company" className="gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Company
+          </TabsTrigger>
+          <TabsTrigger value="bank" className="gap-1.5">
+            <Landmark className="h-3.5 w-3.5" /> Bank
           </TabsTrigger>
           <TabsTrigger value="terms" className="gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Terms
@@ -248,6 +252,58 @@ function SettingsPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="bank" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-primary" /> Bank / Payment Details
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Printed on bills (tax invoices) only — never on quotations. Leave blank to hide.
+              </p>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <Field label="Account Name">
+                <Input
+                  value={s.bank.accountName}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, accountName: e.target.value } })}
+                />
+              </Field>
+              <Field label="Bank Name">
+                <Input
+                  value={s.bank.bankName}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, bankName: e.target.value } })}
+                />
+              </Field>
+              <Field label="Branch">
+                <Input
+                  value={s.bank.branch}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, branch: e.target.value } })}
+                />
+              </Field>
+              <Field label="Account No.">
+                <Input
+                  value={s.bank.accountNo}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, accountNo: e.target.value } })}
+                />
+              </Field>
+              <Field label="IFSC Code">
+                <Input
+                  value={s.bank.ifsc}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, ifsc: e.target.value } })}
+                />
+              </Field>
+              <Field label="UPI ID">
+                <Input
+                  placeholder="e.g. vastu@upi"
+                  value={s.bank.upiId}
+                  onChange={(e) => setS({ ...s, bank: { ...s.bank, upiId: e.target.value } })}
+                />
+              </Field>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="general" className="mt-4">
           <Card>
             <CardHeader>
@@ -276,6 +332,12 @@ function SettingsPage() {
                 <Input
                   value={s.quotePrefix}
                   onChange={(e) => setS({ ...s, quotePrefix: e.target.value })}
+                />
+              </Field>
+              <Field label="Bill Number Prefix">
+                <Input
+                  value={s.invoicePrefix}
+                  onChange={(e) => setS({ ...s, invoicePrefix: e.target.value })}
                 />
               </Field>
               <Field label="Document Title">

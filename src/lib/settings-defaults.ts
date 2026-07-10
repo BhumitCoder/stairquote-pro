@@ -16,6 +16,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
     gst: "",
     salesPerson: "",
   },
+  bank: {
+    accountName: "",
+    bankName: "",
+    branch: "",
+    accountNo: "",
+    ifsc: "",
+    upiId: "",
+  },
   paymentTerms:
     "Up to 2 lakhs — 100% advance.\n10–20 lakhs — 70% advance, 30% before dispatch.\n20 lakhs to 1 Cr — 35% advance, 65% before dispatch.",
   termsAndConditions: [
@@ -31,6 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   gstPercent: 18,
   currency: "₹",
   quotePrefix: "Q",
+  invoicePrefix: "INV",
   docTitle: "Estimate",
   loadingNotice: "LOADING, UNLOADING & TRANSPORTATION EXTRA AS PER ACTUAL.",
   dropdowns: {

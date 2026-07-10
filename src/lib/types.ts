@@ -64,6 +64,52 @@ export interface Quotation {
   updatedAt?: number;
 }
 
+// ============ Bills / Invoices ============
+export type InvoiceStatus = "Unpaid" | "Partial" | "Paid";
+export type PaymentMode = "Cash" | "UPI" | "Bank Transfer" | "Cheque";
+
+export interface Payment {
+  id: string;
+  date: number; // ms
+  amount: number;
+  mode: PaymentMode;
+  note?: string;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  date: number; // ms
+  status: InvoiceStatus; // derived from payments
+  clientId: string;
+  clientSnapshot: Client;
+  quotationId?: string;
+  quotationNumber?: string;
+  items: QuoteItem[];
+  discount: Discount;
+  gstPercent: number;
+  subTotal: number;
+  discountAmt: number;
+  gstAmt: number;
+  grandTotal: number;
+  totals: { area: number; weight: number; itemCount: number };
+  payments: Payment[];
+  amountPaid: number;
+  balanceDue: number;
+  notes?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface BankDetails {
+  accountName: string;
+  bankName: string;
+  branch: string;
+  accountNo: string;
+  ifsc: string;
+  upiId: string;
+}
+
 export interface CompanyProfile {
   name: string;
   address: string;
@@ -76,11 +122,13 @@ export interface CompanyProfile {
 
 export interface AppSettings {
   company: CompanyProfile;
+  bank: BankDetails; // printed on bills only
   paymentTerms: string;
   termsAndConditions: string[];
   gstPercent: number;
   currency: string;
   quotePrefix: string;
+  invoicePrefix: string;
   docTitle: "Estimate" | "Quotation";
   loadingNotice: string;
   dropdowns: {

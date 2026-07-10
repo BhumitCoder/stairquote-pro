@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -31,17 +31,30 @@ import {
 import { toast } from "sonner";
 import { isToday, isOverdue, formatDate, toDateInputValue, fromDateInputValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { TablePagination } from "@/components/TablePagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
 });
 
+const PAGE_SIZE = 10;
+
 function ClientsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const nav = useNavigate();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Client | null>(null);
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients", user?.uid],
@@ -68,6 +81,9 @@ function ClientsPage() {
     );
   });
 
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -89,19 +105,18 @@ function ClientsPage() {
         <Input
           placeholder="Search by name, phone, city…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-12 pl-10"
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="h-11 pl-10"
         />
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
-              <div className="h-5 w-36 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-            </div>
+            <div key={i} className="h-14 animate-pulse rounded-lg border bg-muted" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -111,94 +126,123 @@ function ClientsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((c) => {
-            const cbToday = c.callbackDate && isToday(c.callbackDate);
-            const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);
-            return (
-              <Card key={c.id} className={cn(cbToday && "ring-2 ring-primary/60")}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <Link to="/clients/$id" params={{ id: c.id }} className="min-w-0 flex-1">
-                      <div className="truncate text-lg font-semibold">{c.name}</div>
-                      {c.org && (
-                        <div className="truncate text-sm text-muted-foreground">{c.org}</div>
-                      )}
-                      <div className="mt-2 space-y-1 text-sm">
-                        {c.phone && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone className="h-3.5 w-3.5" /> {c.phone}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="hidden sm:table-cell">Phone</TableHead>
+                  <TableHead className="hidden md:table-cell">Location</TableHead>
+                  <TableHead>Callback</TableHead>
+                  <TableHead className="w-[120px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.map((c) => {
+                  const cbToday = c.callbackDate && isToday(c.callbackDate);
+                  const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);
+                  return (
+                    <TableRow
+                      key={c.id}
+                      className="cursor-pointer"
+                      onClick={() => nav({ to: "/clients/$id", params: { id: c.id } })}
+                    >
+                      <TableCell className="max-w-[240px]">
+                        <div className="flex items-center gap-3">
+                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold uppercase text-primary">
+                            {c.name[0] ?? "C"}
                           </div>
-                        )}
-                        {(c.city || c.state) && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <MapPin className="h-3.5 w-3.5" />
-                            {[c.city, c.state].filter(Boolean).join(", ")}
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{c.name}</div>
+                            {c.org && (
+                              <div className="truncate text-xs text-muted-foreground">{c.org}</div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      {c.callbackDate && (
-                        <div
-                          className={cn(
-                            "mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                            cbToday
-                              ? "bg-primary/15 text-primary"
-                              : cbOverdue
-                                ? "bg-destructive/15 text-destructive"
-                                : "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          {cbToday ? (
-                            <PhoneCall className="h-3 w-3" />
-                          ) : (
-                            <CalendarClock className="h-3 w-3" />
-                          )}
-                          {cbToday
-                            ? "Call today"
-                            : cbOverdue
-                              ? `Overdue: ${formatDate(c.callbackDate)}`
-                              : `Callback: ${formatDate(c.callbackDate)}`}
                         </div>
-                      )}
-                    </Link>
-                    <div className="flex flex-col gap-1">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link to="/clients/$id" params={{ id: c.id }}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditing(c);
-                          setOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={delMut.isPending}
-                        onClick={() => {
-                          if (
-                            confirm(
-                              `Delete ${c.name}? Existing quotations for this client will be kept.`,
-                            )
-                          )
-                            delMut.mutate(c.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground sm:table-cell">
+                        {c.phone || "—"}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {[c.city, c.state].filter(Boolean).join(", ") || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {c.callbackDate ? (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                              cbToday
+                                ? "bg-primary/15 text-primary"
+                                : cbOverdue
+                                  ? "bg-destructive/15 text-destructive"
+                                  : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {cbToday ? (
+                              <PhoneCall className="h-3 w-3" />
+                            ) : (
+                              <CalendarClock className="h-3 w-3" />
+                            )}
+                            {cbToday
+                              ? "Call today"
+                              : cbOverdue
+                                ? `Overdue: ${formatDate(c.callbackDate)}`
+                                : formatDate(c.callbackDate)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                            <Link to="/clients/$id" params={{ id: c.id }}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setEditing(c);
+                              setOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={delMut.isPending}
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Delete ${c.name}? Existing quotations for this client will be kept.`,
+                                )
+                              )
+                                delMut.mutate(c.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <TablePagination
+              page={currentPage}
+              pageSize={PAGE_SIZE}
+              total={filtered.length}
+              onChange={setPage}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <ClientDialog

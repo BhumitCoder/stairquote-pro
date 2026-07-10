@@ -17,6 +17,8 @@ import {
   PhoneCall,
   PanelLeftClose,
   PanelLeftOpen,
+  ReceiptText,
+  BadgePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { User } from "firebase/auth";
@@ -29,7 +31,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 type NavItem = {
-  to: "/" | "/clients" | "/quotations" | "/quotations/new" | "/settings";
+  to: "/" | "/clients" | "/quotations" | "/quotations/new" | "/bills" | "/bills/new" | "/settings";
   label: string;
   icon: typeof Home;
   exact?: boolean;
@@ -40,6 +42,8 @@ const navItems: NavItem[] = [
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/quotations", label: "Quotations", icon: FileText },
   { to: "/quotations/new", label: "New Quotation", icon: PlusCircle },
+  { to: "/bills", label: "Bills", icon: ReceiptText },
+  { to: "/bills/new", label: "New Bill", icon: BadgePlus },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

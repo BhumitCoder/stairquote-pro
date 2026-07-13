@@ -59,6 +59,7 @@ import { toast } from "sonner";
 
 const PAYMENT_MODES: PaymentMode[] = ["Cash", "UPI", "Bank Transfer", "Cheque"];
 
+
 export function InvoiceEditor({
   initial,
   fromQuotation,

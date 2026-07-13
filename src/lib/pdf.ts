@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import { jsPDF, GState } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
 import type { AppSettings, Invoice, Quotation } from "./types";
 import { formatDate } from "./format";
@@ -11,7 +11,6 @@ const DARK: [number, number, number] = [28, 28, 38]; // header bg
 const DARK_MID: [number, number, number] = [45, 45, 58]; // sub-header bg
 const WHITE: [number, number, number] = [255, 255, 255];
 const LIGHT_GRAY: [number, number, number] = [247, 247, 250];
-const MID_GRAY: [number, number, number] = [200, 200, 210];
 const TEXT: [number, number, number] = [35, 35, 45];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -63,6 +62,34 @@ interface ImageCache {
   [url: string]: string | null;
 }
 
+// The logo is white-on-dark, so on white paper it would be invisible.
+// Re-tint it into a dark silhouette (respecting transparency) for the watermark.
+async function tintLogo(
+  dataUrl: string,
+  color: string,
+): Promise<{ url: string; w: number; h: number } | null> {
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = rej;
+    });
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const ctx = c.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    ctx.globalCompositeOperation = "source-in";
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, c.width, c.height);
+    return { url: c.toDataURL("image/png"), w: c.width, h: c.height };
+  } catch {
+    return null;
+  }
+}
+
 async function loadImages(quote: Quotation | Invoice): Promise<ImageCache> {
   const cache: ImageCache = {};
   const urls = new Set<string>();
@@ -91,8 +118,9 @@ export async function generateQuotationPdf(
   const margin = 10;
   const contentW = pageW - margin * 2;
 
-  // ── HEADER BAR (full dark background) ─────────────────────────────────────
-  const headerH = 38;
+  // ── HEADER — minimal letterhead: brand only, no clutter ───────────────────
+  // Full address & contact details live in the letterhead footer instead.
+  const headerH = 28;
   doc.setFillColor(...DARK);
   doc.rect(0, 0, pageW, headerH, "F");
 
@@ -100,62 +128,68 @@ export async function generateQuotationPdf(
   doc.setFillColor(...RED);
   doc.rect(0, headerH - 1.5, pageW, 1.5, "F");
 
-  // Company name (left side of header)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.setTextColor(...WHITE);
-  doc.text(safe(settings.company.name || "Company Name"), margin, 10);
-
-  // Brand tagline under the name
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7.5);
-  doc.setTextColor(...RED);
-  doc.text(safe(BRAND_TAGLINE), margin, 14.5);
-
-  // Address below (header, left) — one line per comma-separated part
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(200, 200, 215);
-  const addressLines = safe(settings.company.address)
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (settings.company.website) addressLines.push(safe(settings.company.website));
-
-  let cy = 19.5;
-  for (const line of addressLines.slice(0, 4)) {
-    doc.text(line, margin, cy);
-    cy += 4.2;
+  // Brand motif: a small red staircase climbing out of the accent stripe,
+  // centered in the header's empty middle.
+  {
+    const stepW = 6;
+    const stepH = 1.9;
+    const steps = 5;
+    const x0 = pageW / 2 - (steps * stepW) / 2;
+    doc.setFillColor(...RED);
+    for (let s = 0; s < steps; s++) {
+      doc.rect(x0 + s * stepW, headerH - 1.5 - (s + 1) * stepH, stepW, (s + 1) * stepH, "F");
+    }
   }
 
-  // Logo (top-right) with phone / email / GSTIN stacked underneath it
+  // Company name — generous letterspacing, vertically centered
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...WHITE);
+  doc.text(safe(settings.company.name || "Company Name"), margin, 13.5, { charSpace: 0.7 });
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(...RED);
+  doc.text(safe(BRAND_TAGLINE), margin, 19.5);
+
+  // Logo (right, vertically centered)
   const logoData = images[APP_LOGO_URL];
-  const logoH = 15;
   if (logoData) {
     try {
-      const logoW = 38;
-      doc.addImage(logoData, "PNG", pageW - margin - logoW, 4, logoW, logoH, undefined, "FAST");
+      const logoW = 42;
+      const logoH2 = 16.5;
+      doc.addImage(
+        logoData,
+        "PNG",
+        pageW - margin - logoW,
+        (headerH - 1.5 - logoH2) / 2,
+        logoW,
+        logoH2,
+        undefined,
+        "FAST",
+      );
     } catch {
       // silently ignore broken images
     }
   }
 
-  const contactLines = [
+  // Letterhead footer contents (measured now — the footer height sets how far
+  // content may flow on every page).
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  const contactStr = [
+    settings.company.address,
     settings.company.phones && `Ph: ${settings.company.phones}`,
     settings.company.email && `Email: ${settings.company.email}`,
+    settings.company.website,
     settings.company.gst && `GSTIN: ${settings.company.gst}`,
   ]
     .filter(Boolean)
-    .map((l) => safe(l as string));
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(200, 200, 215);
-  let ry = logoData ? 4 + logoH + 4.5 : 11;
-  for (const line of contactLines) {
-    doc.text(line, pageW - margin, ry, { align: "right" });
-    ry += 4.2;
-  }
+    .map((l) => safe(l as string).replace(/\n/g, " "))
+    .join("   |   ");
+  const footContactLines = (doc.splitTextToSize(contactStr, contentW) as string[]).slice(0, 2);
+  const FOOT_H = 8 + footContactLines.length * 3.1;
+  const footReserve = FOOT_H + 2;
 
   // ── CLIENT + QUOTE META STRIP ──────────────────────────────────────────────
   // Client details stacked one per line; the strip grows to fit them.
@@ -234,18 +268,18 @@ export async function generateQuotationPdf(
     });
   }
 
-  // ── DOCUMENT TITLE ─────────────────────────────────────────────────────────
+  // ── DOCUMENT TITLE — letterspaced, flanked by fine red rules ───────────────
   const titleY = headerH + stripH + 8;
   const titleText = inv ? "TAX INVOICE" : settings.docTitle.toUpperCase();
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.setTextColor(...RED);
-  doc.text(safe(titleText), pageW / 2, titleY, { align: "center" });
-  // Underline
-  const titleW = doc.getStringUnitWidth(titleText) * 15 * 0.352778;
+  doc.setFontSize(14);
+  doc.setTextColor(...DARK);
+  doc.text(safe(titleText), pageW / 2, titleY, { align: "center", charSpace: 1.4 });
+  const titleW = doc.getStringUnitWidth(titleText) * 14 * 0.352778 + (titleText.length - 1) * 1.4;
   doc.setDrawColor(...RED);
-  doc.setLineWidth(0.8);
-  doc.line(pageW / 2 - titleW / 2, titleY + 1.5, pageW / 2 + titleW / 2, titleY + 1.5);
+  doc.setLineWidth(0.6);
+  doc.line(pageW / 2 - titleW / 2 - 18, titleY - 1.7, pageW / 2 - titleW / 2 - 5, titleY - 1.7);
+  doc.line(pageW / 2 + titleW / 2 + 5, titleY - 1.7, pageW / 2 + titleW / 2 + 18, titleY - 1.7);
 
   // Linked quotation reference under the title (bills only)
   let tableStartY = titleY + 5;
@@ -307,9 +341,9 @@ export async function generateQuotationPdf(
     styles: {
       font: "helvetica",
       fontSize: 8.5,
-      cellPadding: 2.5,
-      lineColor: MID_GRAY,
-      lineWidth: 0.2,
+      cellPadding: 3,
+      lineColor: [235, 235, 241] as [number, number, number],
+      lineWidth: 0.15,
       textColor: TEXT,
       valign: "middle",
     },
@@ -318,11 +352,11 @@ export async function generateQuotationPdf(
       textColor: WHITE,
       fontStyle: "bold",
       halign: "center",
-      fontSize: 8.5,
-      cellPadding: { top: 3, bottom: 3, left: 1, right: 1 },
+      fontSize: 8,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 1, right: 1 },
     },
     alternateRowStyles: {
-      fillColor: LIGHT_GRAY,
+      fillColor: [250, 250, 252] as [number, number, number],
     },
     // Widths must sum to contentW (190mm) and leave every header on a single line.
     columnStyles: {
@@ -415,10 +449,10 @@ export async function generateQuotationPdf(
       fontSize: 9,
       cellPadding: 2.5,
       fontStyle: "bold",
-      fillColor: [230, 230, 238],
+      fillColor: [238, 238, 244],
       textColor: TEXT,
-      lineColor: MID_GRAY,
-      lineWidth: 0.2,
+      lineColor: [235, 235, 241] as [number, number, number],
+      lineWidth: 0.15,
     },
     // Keep in sync with the items-table columnStyles above so columns align.
     columnStyles: {
@@ -509,8 +543,8 @@ export async function generateQuotationPdf(
     [`GST @ ${quote.gstPercent}%`, pdfINR(quote.gstAmt), false],
   ];
 
-  doc.setLineWidth(0.2);
-  doc.setDrawColor(...MID_GRAY);
+  doc.setLineWidth(0.15);
+  doc.setDrawColor(235, 235, 241);
 
   for (const [label, value] of totalsData) {
     doc.setFillColor(...LIGHT_GRAY);
@@ -784,10 +818,36 @@ export async function generateQuotationPdf(
     align: "center",
   });
 
-  // ── PAGE FOOTER ────────────────────────────────────────────────────────────
+  // ── WATERMARK + PAGE FOOTER ────────────────────────────────────────────────
+  // Logo watermark, centered on every page: the white-on-dark logo is re-tinted
+  // to a dark silhouette, then stamped at very low opacity.
+  const wm = logoData ? await tintLogo(logoData, "#2a2a38") : null;
+
   const total = doc.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
+
+    if (wm) {
+      try {
+        const wmW = 120;
+        const wmH = (wm.h / wm.w) * wmW;
+        doc.saveGraphicsState();
+        doc.setGState(new GState({ opacity: 0.055 }));
+        doc.addImage(
+          wm.url,
+          "PNG",
+          (pageW - wmW) / 2,
+          (pageH - wmH) / 2,
+          wmW,
+          wmH,
+          undefined,
+          "FAST",
+        );
+        doc.restoreGraphicsState();
+      } catch {
+        // watermark is decorative — never fail the document for it
+      }
+    }
 
     // Footer bar (slim)
     doc.setFillColor(...DARK);
@@ -799,7 +859,9 @@ export async function generateQuotationPdf(
     // Baseline chosen so 7pt text sits optically centered in the 6mm bar.
     const footY = pageH - 1.8;
     doc.text(safe(quote.number), margin, footY);
-    doc.text(safe(settings.company.name), pageW / 2, footY, { align: "center" });
+    doc.setFont("helvetica", "italic");
+    doc.text(safe(BRAND_TAGLINE), pageW / 2, footY, { align: "center" });
+    doc.setFont("helvetica", "normal");
     doc.text(`Page ${i} of ${total}`, pageW - margin, footY, { align: "right" });
   }
 

@@ -31,10 +31,27 @@ export function QuotationPreview({
   ].filter(Boolean) as [string, string][];
 
   return (
-    <div className="overflow-hidden bg-white text-[13px] leading-snug text-zinc-800 shadow-sm">
+    <div className="relative overflow-hidden bg-white text-[13px] leading-snug text-zinc-800 shadow-sm">
+      {/* Centered logo watermark — dark silhouette at very low opacity */}
+      <img
+        src="/logo.png"
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[55%] max-w-[480px] -translate-x-1/2 -translate-y-1/2 select-none"
+        style={{ filter: "brightness(0) saturate(0)", opacity: 0.05 }}
+      />
       {/* Header */}
-      <div style={{ background: DARK }} className="px-5 py-4 text-white sm:px-7">
-        <div className="flex items-start justify-between gap-4">
+      <div style={{ background: DARK }} className="relative px-5 py-4 text-white sm:px-7">
+        {/* Brand motif: red staircase climbing out of the accent stripe */}
+        <div
+          className="absolute bottom-0 left-1/2 hidden -translate-x-1/2 items-end sm:flex"
+          aria-hidden
+        >
+          {[1, 2, 3, 4, 5].map((s) => (
+            <span key={s} style={{ background: RED, height: s * 5, width: 16 }} />
+          ))}
+        </div>
+        <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-lg font-bold tracking-wide sm:text-xl">
               {settings.company.name || "Company Name"}
@@ -112,14 +129,13 @@ export function QuotationPreview({
         </div>
       </div>
 
-      {/* Title */}
-      <div className="pt-5 text-center">
-        <span
-          style={{ color: RED, borderColor: RED }}
-          className="inline-block border-b-2 pb-0.5 text-base font-bold uppercase tracking-wider"
-        >
+      {/* Title — letterspaced, flanked by fine red rules */}
+      <div className="flex items-center justify-center gap-4 pt-6">
+        <span style={{ background: RED }} className="h-[2px] w-12 rounded-full" />
+        <span className="text-base font-bold uppercase tracking-[0.3em] text-zinc-900">
           {inv ? "Tax Invoice" : settings.docTitle}
         </span>
+        <span style={{ background: RED }} className="h-[2px] w-12 rounded-full" />
       </div>
 
       {/* Items table */}
@@ -127,27 +143,27 @@ export function QuotationPreview({
         <table className="w-full min-w-[640px] border-collapse text-[12px]">
           <thead>
             <tr style={{ background: DARK }} className="text-white">
-              <th className="border border-zinc-300 px-2 py-2 text-center font-semibold">#</th>
-              <th className="border border-zinc-300 px-2 py-2 text-left font-semibold">
+              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">#</th>
+              <th className="border border-zinc-200 px-2 py-2 text-left font-semibold">
                 Description
               </th>
-              <th className="border border-zinc-300 px-2 py-2 text-center font-semibold">Width</th>
-              <th className="border border-zinc-300 px-2 py-2 text-center font-semibold">Height</th>
-              <th className="border border-zinc-300 px-2 py-2 text-center font-semibold">Qty</th>
-              <th className="border border-zinc-300 px-2 py-2 text-right font-semibold">
+              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">Width</th>
+              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">Height</th>
+              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">Qty</th>
+              <th className="border border-zinc-200 px-2 py-2 text-right font-semibold">
                 Sqft/Rft
               </th>
-              <th className="border border-zinc-300 px-2 py-2 text-right font-semibold">Rate</th>
-              <th className="border border-zinc-300 px-2 py-2 text-right font-semibold">Amount</th>
+              <th className="border border-zinc-200 px-2 py-2 text-right font-semibold">Rate</th>
+              <th className="border border-zinc-200 px-2 py-2 text-right font-semibold">Amount</th>
             </tr>
           </thead>
           <tbody>
             {quote.items.map((it, idx) => (
               <tr key={idx} className={idx % 2 === 1 ? "bg-zinc-50" : "bg-white"}>
-                <td className="border border-zinc-300 px-2 py-2 text-center align-top">
+                <td className="border border-zinc-200 px-2 py-2 text-center align-top">
                   {idx + 1}
                 </td>
-                <td className="border border-zinc-300 px-2 py-2 align-top">
+                <td className="border border-zinc-200 px-2 py-2 align-top">
                   <div className="space-y-1.5">
                     <div className="flex gap-2.5">
                       {it.imageUrl && (
@@ -186,37 +202,37 @@ export function QuotationPreview({
                     )}
                   </div>
                 </td>
-                <td className="border border-zinc-300 px-2 py-2 text-center align-top">
+                <td className="border border-zinc-200 px-2 py-2 text-center align-top">
                   {it.width || "-"}
                 </td>
-                <td className="border border-zinc-300 px-2 py-2 text-center align-top">
+                <td className="border border-zinc-200 px-2 py-2 text-center align-top">
                   {it.height || "-"}
                 </td>
-                <td className="border border-zinc-300 px-2 py-2 text-center align-top">{it.qty}</td>
-                <td className="border border-zinc-300 px-2 py-2 text-right align-top">
+                <td className="border border-zinc-200 px-2 py-2 text-center align-top">{it.qty}</td>
+                <td className="border border-zinc-200 px-2 py-2 text-right align-top">
                   {it.rateMode === "lumpsum" ? "-" : formatNum(it.measureValue * it.qty, 2)}
                 </td>
-                <td className="border border-zinc-300 px-2 py-2 text-right align-top">
+                <td className="border border-zinc-200 px-2 py-2 text-right align-top">
                   {it.rateMode === "lumpsum" ? "Lump Sum" : formatNum(it.rate, 2)}
                 </td>
-                <td className="border border-zinc-300 px-2 py-2 text-right align-top font-medium">
+                <td className="border border-zinc-200 px-2 py-2 text-right align-top font-medium">
                   {formatNum(it.amount, 2)}
                 </td>
               </tr>
             ))}
             <tr className="bg-zinc-100 font-bold">
-              <td className="border border-zinc-300 px-2 py-2" />
-              <td className="border border-zinc-300 px-2 py-2">TOTAL</td>
-              <td className="border border-zinc-300 px-2 py-2" />
-              <td className="border border-zinc-300 px-2 py-2" />
-              <td className="border border-zinc-300 px-2 py-2 text-center">
+              <td className="border border-zinc-200 px-2 py-2" />
+              <td className="border border-zinc-200 px-2 py-2">TOTAL</td>
+              <td className="border border-zinc-200 px-2 py-2" />
+              <td className="border border-zinc-200 px-2 py-2" />
+              <td className="border border-zinc-200 px-2 py-2 text-center">
                 {quote.totals.itemCount}
               </td>
-              <td className="border border-zinc-300 px-2 py-2 text-right">
+              <td className="border border-zinc-200 px-2 py-2 text-right">
                 {formatNum(quote.totals.area, 2)}
               </td>
-              <td className="border border-zinc-300 px-2 py-2" />
-              <td className="border border-zinc-300 px-2 py-2 text-right">
+              <td className="border border-zinc-200 px-2 py-2" />
+              <td className="border border-zinc-200 px-2 py-2 text-right">
                 {formatNum(quote.subTotal, 2)}
               </td>
             </tr>
@@ -409,7 +425,7 @@ export function QuotationPreview({
         className="flex items-center justify-between px-5 py-2 text-[10px] text-zinc-400 sm:px-7"
       >
         <span>{quote.number}</span>
-        <span>{settings.company.name}</span>
+        <span className="italic">{BRAND_TAGLINE}</span>
         <span>Page 1</span>
       </div>
     </div>

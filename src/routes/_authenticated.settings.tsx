@@ -32,6 +32,7 @@ function SettingsPage() {
   const qc = useQueryClient();
   const [s, setS] = useState<AppSettings>(DEFAULT_SETTINGS);
 
+  
   const { data } = useQuery({
     queryKey: ["settings", user?.uid],
     queryFn: () => getSettings(user!.uid),

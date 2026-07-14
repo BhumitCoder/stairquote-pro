@@ -109,16 +109,14 @@ function SidebarContent({
       >
         {!collapsed && (
           <div className="min-w-0">
-            <div className="inline-block rounded-md bg-white px-2 py-1">
-              <img
-                src="/logo.png"
-                alt="Vastu Stairs Designer"
-                className="h-7 w-auto object-contain"
-              />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Vastu Stairs Designer"
+              className="h-9 w-auto object-contain"
+            />
             <div
               className="mt-1 truncate text-[9px] italic tracking-wide"
-              style={{ color: "var(--color-sidebar-foreground)", opacity: 0.4 }}
+              style={{ color: "var(--color-sidebar-foreground)", opacity: 0.5 }}
             >
               {BRAND_TAGLINE}
             </div>
@@ -127,7 +125,7 @@ function SidebarContent({
         {onClose && (
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 transition-colors hover:bg-white/10"
+            className="rounded-md p-1.5 transition-colors hover:bg-black/5"
             style={{ color: "var(--color-sidebar-foreground)", opacity: 0.6 }}
           >
             <X className="h-4 w-4" />
@@ -137,7 +135,7 @@ function SidebarContent({
           <button
             onClick={onToggleCollapse}
             title={collapsed ? "Expand sidebar" : "Minimize sidebar"}
-            className="rounded-md p-1.5 transition-colors hover:bg-white/10"
+            className="rounded-md p-1.5 transition-colors hover:bg-black/5"
             style={{ color: "var(--color-sidebar-foreground)", opacity: 0.6 }}
           >
             {collapsed ? (
@@ -171,7 +169,7 @@ function SidebarContent({
                   className={cn(
                     "flex items-center rounded-lg text-sm font-medium transition-all duration-150",
                     collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-                    active ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-white/10",
+                    active ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-black/5",
                   )}
                   style={active ? {} : { color: "var(--color-sidebar-foreground)", opacity: 0.75 }}
                 >

@@ -302,6 +302,7 @@ export function QuotationPreview({
             <div>Total Items : {quote.totals.itemCount}</div>
             <div>Total Area : {formatNum(quote.totals.area, 2)} sqft</div>
             <div>Total Weight : {formatNum(quote.totals.weight, 2)} Kg</div>
+            <div>Avg Price / sqft : {formatINR(avg)}</div>
           </div>
           {inv && bankLines.length > 0 && (
             <div>
@@ -327,14 +328,16 @@ export function QuotationPreview({
         <div className="w-full shrink-0 sm:w-80">
           <div className="space-y-0 text-[13px]">
             <Row label="Sub Total" value={formatINR(quote.subTotal)} />
-            <Row
-              label={`Discount${
-                quote.discount.mode === "percent" && quote.discount.value
-                  ? ` (${quote.discount.value}%)`
-                  : ""
-              }`}
-              value={`- ${formatINR(quote.discountAmt)}`}
-            />
+            {quote.discountAmt > 0 && (
+              <Row
+                label={`Discount${
+                  quote.discount.mode === "percent" && quote.discount.value
+                    ? ` (${quote.discount.value}%)`
+                    : ""
+                }`}
+                value={`- ${formatINR(quote.discountAmt)}`}
+              />
+            )}
             <Row label={`GST @ ${quote.gstPercent}%`} value={formatINR(quote.gstAmt)} last />
             <div
               className="flex items-center justify-between border-t-2 py-2.5 font-bold"
@@ -361,13 +364,6 @@ export function QuotationPreview({
                 </div>
               </>
             )}
-            <div
-              className="flex items-center justify-between pt-2 text-[12px]"
-              style={{ color: GRAY }}
-            >
-              <span>Avg Price / sqft</span>
-              <span>{formatINR(avg)}</span>
-            </div>
           </div>
         </div>
       </div>

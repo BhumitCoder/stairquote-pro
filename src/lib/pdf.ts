@@ -437,10 +437,12 @@ export async function generateQuotationPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...TEXT);
+  const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
   const summaryLines = [
     `Total Items   : ${quote.totals.itemCount}`,
     `Total Area    : ${pdfNum(quote.totals.area, 2)} sqft`,
     `Total Weight  : ${pdfNum(quote.totals.weight, 2)} Kg`,
+    `Avg Price/sqft: ${pdfINR(avg)}`,
   ];
   for (const l of summaryLines) {
     doc.text(l, margin, ly + 4);
@@ -477,14 +479,14 @@ export async function generateQuotationPdf(
 
   // RIGHT — totals breakdown, plain rows separated by hairlines
   let ty = boxTop;
-  const totalsData: [string, string][] = [
-    ["Sub Total", pdfINR(quote.subTotal)],
-    [
+  const totalsData: [string, string][] = [["Sub Total", pdfINR(quote.subTotal)]];
+  if (quote.discountAmt > 0) {
+    totalsData.push([
       `Discount${quote.discount.mode === "percent" ? ` (${quote.discount.value}%)` : ""}`,
       `- ${pdfINR(quote.discountAmt)}`,
-    ],
-    [`GST @ ${quote.gstPercent}%`, pdfINR(quote.gstAmt)],
-  ];
+    ]);
+  }
+  totalsData.push([`GST @ ${quote.gstPercent}%`, pdfINR(quote.gstAmt)]);
 
   doc.setDrawColor(...LINE);
   doc.setLineWidth(0.25);
@@ -537,15 +539,6 @@ export async function generateQuotationPdf(
     doc.line(rightX2, ty + rowH + 1, rightX2 + rightW2, ty + rowH + 1);
     ty += rowH + 3;
   }
-
-  // Avg price row
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...GRAY);
-  const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
-  doc.text("Avg Price / sqft", rightX2, ty + 4);
-  doc.text(pdfINR(avg), rightX2 + rightW2, ty + 4, { align: "right" });
-  ty += rowH;
 
   y = Math.max(ly, ty) + 6;
   void leftW; // reserved for future left-column width tuning

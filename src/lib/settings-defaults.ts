@@ -24,8 +24,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     ifsc: "",
     upiId: "",
   },
-  paymentTerms:
-    "Up to 2 lakhs — 100% advance.\n10–20 lakhs — 70% advance, 30% before dispatch.\n20 lakhs to 1 Cr — 35% advance, 65% before dispatch.",
   termsAndConditions: [
     "18% GST applies on subtotal.",
     "Final billing as per actual site measurement.",

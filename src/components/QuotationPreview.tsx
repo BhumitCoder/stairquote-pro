@@ -372,31 +372,6 @@ export function QuotationPreview({
         </div>
       </div>
 
-      {/* Payment condition — quotations only; a bill shows actual payments instead */}
-      {!inv && settings.paymentTerms && (
-        <div className="relative z-10 px-5 pt-6 sm:px-7">
-          <SectionHeading>Payment Condition</SectionHeading>
-          <div
-            className="mt-3 space-y-2 rounded-md px-4 py-3.5 text-[12px]"
-            style={{ background: "#F9F9FB", color: TEXT }}
-          >
-            {settings.paymentTerms
-              .split("\n")
-              .map((l) => l.trim())
-              .filter(Boolean)
-              .map((line, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span
-                    style={{ background: RED }}
-                    className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
-                  />
-                  <span>{line}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
       {/* Payment history — bills only */}
       {inv && inv.payments.length > 0 && (
         <div className="relative z-10 px-5 pt-6 sm:px-7">

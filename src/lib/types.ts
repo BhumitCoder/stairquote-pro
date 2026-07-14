@@ -123,7 +123,6 @@ export interface CompanyProfile {
 export interface AppSettings {
   company: CompanyProfile;
   bank: BankDetails; // printed on bills only
-  paymentTerms: string;
   termsAndConditions: string[];
   gstPercent: number;
   currency: string;

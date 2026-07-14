@@ -32,7 +32,6 @@ function SettingsPage() {
   const qc = useQueryClient();
   const [s, setS] = useState<AppSettings>(DEFAULT_SETTINGS);
 
-  
   const { data } = useQuery({
     queryKey: ["settings", user?.uid],
     queryFn: () => getSettings(user!.uid),
@@ -155,23 +154,6 @@ function SettingsPage() {
 
         <TabsContent value="terms" className="mt-4">
           <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" /> Payment Terms
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Appears above Terms &amp; Conditions on the PDF.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  rows={5}
-                  value={s.paymentTerms}
-                  onChange={(e) => setS({ ...s, paymentTerms: e.target.value })}
-                />
-              </CardContent>
-            </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

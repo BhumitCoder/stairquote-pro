@@ -550,34 +550,6 @@ export async function generateQuotationPdf(
   y = Math.max(ly, ty) + 6;
   void leftW; // reserved for future left-column width tuning
 
-  // ── PAYMENT CONDITION — quotations only; a bill shows actual payments instead ──
-  if (!inv && settings.paymentTerms.trim()) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    const ptRows = safe(settings.paymentTerms)
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((r) => doc.splitTextToSize(r, contentW - 18) as string[]);
-    const rowHs = ptRows.map((w) => w.length * 4.6 + 3);
-    const panelH = rowHs.reduce((a, b) => a + b, 0) + 4;
-    ensureSpace(9 + panelH + 4);
-    sectionHeading("PAYMENT CONDITION");
-    doc.setFillColor(...PANEL);
-    doc.roundedRect(margin, y, contentW, panelH, 1.8, 1.8, "F");
-    let ry2 = y + 6.2;
-    for (let i = 0; i < ptRows.length; i++) {
-      doc.setFillColor(...RED);
-      doc.circle(margin + 5.5, ry2 - 1.3, 0.9, "F");
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...TEXT);
-      doc.text(ptRows[i], margin + 10, ry2);
-      ry2 += rowHs[i];
-    }
-    y += panelH + 8;
-  }
-
   // ── PAYMENT HISTORY (bills only) ──────────────────────────────────────────
   if (inv && inv.payments.length > 0) {
     doc.setFont("helvetica", "normal");

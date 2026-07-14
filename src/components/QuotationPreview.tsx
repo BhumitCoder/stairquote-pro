@@ -372,15 +372,18 @@ export function QuotationPreview({
         </div>
       </div>
 
-      {/* Loading notice — quotations only */}
+      {/* Loading notice — quotations only, soft callout card */}
       {!inv && settings.loadingNotice && (
         <div className="relative z-10 px-5 pt-6 sm:px-7">
-          <p className="text-[12px]" style={{ color: TEXT }}>
+          <div
+            className="rounded-md border-l-[3px] px-4 py-3 text-[12px]"
+            style={{ background: "#FFF6F6", borderColor: RED, color: TEXT }}
+          >
             <span className="font-bold" style={{ color: RED }}>
               Note:{" "}
             </span>
             {settings.loadingNotice}
-          </p>
+          </div>
         </div>
       )}
 
@@ -388,13 +391,22 @@ export function QuotationPreview({
       {!inv && settings.paymentTerms && (
         <div className="relative z-10 px-5 pt-6 sm:px-7">
           <SectionHeading>Payment Condition</SectionHeading>
-          <div className="mt-3 space-y-1.5 text-[12px]" style={{ color: TEXT }}>
+          <div
+            className="mt-3 space-y-2 rounded-md px-4 py-3.5 text-[12px]"
+            style={{ background: "#F9F9FB", color: TEXT }}
+          >
             {settings.paymentTerms
               .split("\n")
               .map((l) => l.trim())
               .filter(Boolean)
               .map((line, i) => (
-                <div key={i}>{line}</div>
+                <div key={i} className="flex items-start gap-2">
+                  <span
+                    style={{ background: RED }}
+                    className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
+                  />
+                  <span>{line}</span>
+                </div>
               ))}
           </div>
         </div>
@@ -404,9 +416,16 @@ export function QuotationPreview({
       {inv && inv.payments.length > 0 && (
         <div className="relative z-10 px-5 pt-6 sm:px-7">
           <SectionHeading>Payment History</SectionHeading>
-          <div className="mt-3 divide-y text-[12px]" style={{ borderColor: LINE, color: TEXT }}>
+          <div
+            className="mt-3 space-y-2 rounded-md px-4 py-3.5 text-[12px]"
+            style={{ background: "#F9F9FB", color: TEXT }}
+          >
             {inv.payments.map((p) => (
-              <div key={p.id} className="flex items-start justify-between gap-2 py-1.5">
+              <div key={p.id} className="flex items-start gap-2">
+                <span
+                  style={{ background: RED }}
+                  className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
+                />
                 <span className="min-w-0 flex-1">
                   {formatDate(p.date)} &nbsp;|&nbsp; {p.mode}
                   {p.note ? ` — ${p.note}` : ""}
@@ -422,18 +441,24 @@ export function QuotationPreview({
       {!inv && settings.termsAndConditions.some((t) => t.trim()) && (
         <div className="relative z-10 px-5 pt-6 sm:px-7">
           <SectionHeading>Terms &amp; Conditions</SectionHeading>
-          <ol
-            className="mt-3 grid gap-x-8 gap-y-1.5 text-[12px] sm:grid-cols-2"
-            style={{ color: TEXT }}
+          <div
+            className="mt-3 rounded-md px-4 py-3.5"
+            style={{ background: "#F9F9FB", color: TEXT }}
           >
-            {settings.termsAndConditions
-              .filter((t) => t.trim())
-              .map((t, i) => (
-                <li key={i}>
-                  {i + 1}. {t}
-                </li>
-              ))}
-          </ol>
+            <ol className="grid gap-x-8 gap-y-1.5 text-[12px] sm:grid-cols-2">
+              {settings.termsAndConditions
+                .filter((t) => t.trim())
+                .map((t, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span
+                      style={{ background: RED }}
+                      className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
+                    />
+                    <span>{t}</span>
+                  </li>
+                ))}
+            </ol>
+          </div>
         </div>
       )}
 

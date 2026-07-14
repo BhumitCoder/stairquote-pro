@@ -550,44 +550,58 @@ export async function generateQuotationPdf(
   y = Math.max(ly, ty) + 6;
   void leftW; // reserved for future left-column width tuning
 
-  // ── LOADING NOTICE (quotations only) ───────────────────────────────────────
+  // ── LOADING NOTICE (quotations only) — soft callout card ──────────────────
   if (!inv && settings.loadingNotice.trim()) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     const label = "Note: ";
     const labelW = doc.getStringUnitWidth(label) * 8.5 * 0.352778;
+    doc.setFont("helvetica", "normal");
     const noticeLines = doc.splitTextToSize(
       safe(settings.loadingNotice),
-      contentW - labelW,
+      contentW - labelW - 9,
     ) as string[];
-    ensureSpace(noticeLines.length * 4.3 + 4);
+    const noticeH = noticeLines.length * 4.3 + 5.5;
+    ensureSpace(noticeH + 5);
+    doc.setFillColor(255, 246, 246);
+    doc.roundedRect(margin, y - 4.5, contentW, noticeH, 1.6, 1.6, "F");
+    doc.setFillColor(...RED);
+    doc.rect(margin, y - 4.5, 1.2, noticeH, "F");
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...RED);
-    doc.text(label, margin, y);
+    doc.text(label, margin + 4.5, y);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...TEXT);
-    doc.text(noticeLines, margin + labelW, y);
-    y += noticeLines.length * 4.3 + 7;
+    doc.text(noticeLines, margin + 4.5 + labelW, y);
+    y += noticeH + 6;
   }
 
   // ── PAYMENT CONDITION — quotations only; a bill shows actual payments instead ──
   if (!inv && settings.paymentTerms.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
     const ptRows = safe(settings.paymentTerms)
       .split("\n")
       .map((s) => s.trim())
-      .filter(Boolean);
-    ensureSpace(8 + ptRows.length * 5);
+      .filter(Boolean)
+      .map((r) => doc.splitTextToSize(r, contentW - 18) as string[]);
+    const rowHs = ptRows.map((w) => w.length * 4.6 + 3);
+    const panelH = rowHs.reduce((a, b) => a + b, 0) + 4;
+    ensureSpace(9 + panelH + 4);
     sectionHeading("PAYMENT CONDITION");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...TEXT);
-    for (const row of ptRows) {
-      const wrapped = doc.splitTextToSize(row, contentW - 5) as string[];
-      ensureSpace(wrapped.length * 4.4 + 2);
-      doc.text(wrapped, margin, y);
-      y += wrapped.length * 4.4 + 1.6;
+    doc.setFillColor(...PANEL);
+    doc.roundedRect(margin, y, contentW, panelH, 1.8, 1.8, "F");
+    let ry2 = y + 6.2;
+    for (let i = 0; i < ptRows.length; i++) {
+      doc.setFillColor(...RED);
+      doc.circle(margin + 5.5, ry2 - 1.3, 0.9, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...TEXT);
+      doc.text(ptRows[i], margin + 10, ry2);
+      ry2 += rowHs[i];
     }
-    y += 4;
+    y += panelH + 8;
   }
 
   // ── PAYMENT HISTORY (bills only) ──────────────────────────────────────────
@@ -597,26 +611,29 @@ export async function generateQuotationPdf(
     const payRows = inv.payments.map((p) => {
       const left = safe(`${formatDate(p.date)}   |   ${p.mode}${p.note ? ` -- ${p.note}` : ""}`);
       return {
-        lines: doc.splitTextToSize(left, contentW - 50) as string[],
+        lines: doc.splitTextToSize(left, contentW - 55) as string[],
         amount: pdfINR(p.amount),
       };
     });
-    const rowHs = payRows.map((r) => r.lines.length * 4.4 + 1.6);
-    ensureSpace(8 + rowHs.reduce((a, b) => a + b, 0) + 4);
+    const rowHs = payRows.map((r) => r.lines.length * 4.4 + 3);
+    const panelH = rowHs.reduce((a, b) => a + b, 0) + 4;
+    ensureSpace(9 + panelH + 4);
     sectionHeading("PAYMENT HISTORY");
-    doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.25);
+    doc.setFillColor(...PANEL);
+    doc.roundedRect(margin, y, contentW, panelH, 1.8, 1.8, "F");
+    let py = y + 6.2;
     for (let i = 0; i < payRows.length; i++) {
+      doc.setFillColor(...RED);
+      doc.circle(margin + 5.5, py - 1.3, 0.9, "F");
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.6);
       doc.setTextColor(...TEXT);
-      doc.text(payRows[i].lines, margin, y + 3.6);
+      doc.text(payRows[i].lines, margin + 10, py);
       doc.setFont("helvetica", "bold");
-      doc.text(payRows[i].amount, margin + contentW, y + 3.6, { align: "right" });
-      y += rowHs[i];
-      doc.line(margin, y - 0.4, margin + contentW, y - 0.4);
+      doc.text(payRows[i].amount, margin + contentW - 4.5, py, { align: "right" });
+      py += rowHs[i];
     }
-    y += 6;
+    y += panelH + 8;
   }
 
   // ── TERMS & CONDITIONS — quotations only ───────────────────────────────────
@@ -624,12 +641,11 @@ export async function generateQuotationPdf(
   if (terms.length > 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.3);
+    const panelPad = 5.5;
     const colGap = 10;
-    const colW = (contentW - colGap) / 2;
-    const wrapped = terms.map(
-      (t, i) => doc.splitTextToSize(`${i + 1}. ${safe(t)}`, colW - 2) as string[],
-    );
-    const itemHs = wrapped.map((w) => w.length * 4 + 2);
+    const colW = (contentW - panelPad * 2 - colGap) / 2;
+    const wrapped = terms.map((t) => doc.splitTextToSize(safe(t), colW - 6) as string[]);
+    const itemHs = wrapped.map((w) => w.length * 4.1 + 2.8);
     const totalH = itemHs.reduce((a, b) => a + b, 0);
 
     // Split items into two columns as evenly as possible (keeping order).
@@ -647,24 +663,30 @@ export async function generateQuotationPdf(
     const colsH = Math.max(leftH, rightH);
 
     const drawTerm = (idx: number, x: number, ty2: number): number => {
+      doc.setFillColor(...RED);
+      doc.circle(x + 1, ty2 - 1.2, 0.9, "F");
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.3);
       doc.setTextColor(...TEXT);
-      doc.text(wrapped[idx], x, ty2);
+      doc.text(wrapped[idx], x + 4.5, ty2);
       return itemHs[idx];
     };
 
     if (colsH <= pageH - margin - FOOTER_H - 24) {
-      ensureSpace(8 + colsH + 4);
+      const panelH = colsH + panelPad * 1.6;
+      ensureSpace(9 + panelH + 4);
       sectionHeading("TERMS & CONDITIONS");
-      let cy2 = y + 2;
-      for (let i = 0; i < splitIdx; i++) cy2 += drawTerm(i, margin, cy2);
-      cy2 = y + 2;
-      for (let i = splitIdx; i < terms.length; i++) cy2 += drawTerm(i, margin + colW + colGap, cy2);
-      y += colsH + 8;
+      doc.setFillColor(...PANEL);
+      doc.roundedRect(margin, y, contentW, panelH, 1.8, 1.8, "F");
+      let cy2 = y + panelPad + 1.5;
+      for (let i = 0; i < splitIdx; i++) cy2 += drawTerm(i, margin + panelPad, cy2);
+      cy2 = y + panelPad + 1.5;
+      for (let i = splitIdx; i < terms.length; i++)
+        cy2 += drawTerm(i, margin + panelPad + colW + colGap, cy2);
+      y += panelH + 8;
     } else {
       // Very long list — single column, item by item, nothing ever cut.
-      ensureSpace(8 + itemHs[0] + 2);
+      ensureSpace(9 + itemHs[0] + 2);
       sectionHeading("TERMS & CONDITIONS");
       let cy2 = y + 2;
       for (let i = 0; i < terms.length; i++) {

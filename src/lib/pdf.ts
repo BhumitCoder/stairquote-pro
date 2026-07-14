@@ -15,15 +15,15 @@ const WHITE: [number, number, number] = [255, 255, 255];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** jsPDF-safe Indian rupee formatter — uses "Rs." not "₹" (Helvetica can't render ₹) */
+/** Indian rupee formatter — real "₹" glyph (rendered via the embedded NotoSans font) */
 function pdfINR(n: number): string {
   if (!Number.isFinite(n)) n = 0;
   const s = new Intl.NumberFormat("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
-  // strip any non-ASCII characters (Intl can emit narrow no-break space etc.)
-  return `Rs. ${s.replace(/[^\x20-\x7E,. ]/g, "")}`;
+  // strip any stray non-ASCII characters (Intl can emit narrow no-break space etc.)
+  return `\u20B9 ${s.replace(/[^\x20-\x7E,. ]/g, "")}`;
 }
 
 function pdfNum(n: number, digits = 2): string {
@@ -36,9 +36,9 @@ function pdfNum(n: number, digits = 2): string {
     .replace(/[^\x20-\x7E,. ]/g, "");
 }
 
-/** Strip non-ASCII characters (but keep line breaks) from any user-supplied string */
+/** Strip characters the embedded font can't render (keeps ₹ and line breaks) */
 function safe(s: string | undefined | null): string {
-  return (s ?? "").replace(/[^\x20-\x7E\n]/g, (ch) => {
+  return (s ?? "").replace(/[^\x20-\x7E\n\u20B9]/g, (ch) => {
     // Replace common Unicode punctuation with ASCII equivalents
     const map: Record<string, string> = {
       "\u2014": "--", // em dash
@@ -47,7 +47,6 @@ function safe(s: string | undefined | null): string {
       "\u2019": "'", // right single quote
       "\u201C": '"', // left double quote
       "\u201D": '"', // right double quote
-      "\u20B9": "Rs.", // rupee sign
       "\u2022": "*", // bullet
       "\u25CF": "*", // black circle
       "\u2026": "...", // ellipsis
@@ -75,6 +74,37 @@ async function loadImages(quote: Quotation | Invoice): Promise<ImageCache> {
   return cache;
 }
 
+// ─── Custom font (NotoSans) — lets the PDF render the real "₹" glyph, which ──
+// Helvetica (jsPDF's built-in font) cannot draw.
+async function fetchFontBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  } catch {
+    return null;
+  }
+}
+
+/** Registers NotoSans on the doc if the font files load; returns the font family to use. */
+async function registerBodyFont(doc: jsPDF): Promise<string> {
+  const [regular, bold] = await Promise.all([
+    fetchFontBase64("/fonts/NotoSans-Regular.ttf"),
+    fetchFontBase64("/fonts/NotoSans-Bold.ttf"),
+  ]);
+  if (!regular || !bold) return "helvetica";
+  doc.addFileToVFS("NotoSans-Regular.ttf", regular);
+  doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+  doc.addFileToVFS("NotoSans-Bold.ttf", bold);
+  doc.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
+  return "NotoSans";
+}
+
 // ─── Main PDF generator ───────────────────────────────────────────────────────
 
 // Renders both quotations and bills (tax invoices) — pass either document.
@@ -86,17 +116,21 @@ export async function generateQuotationPdf(
   settings: AppSettings,
 ): Promise<Blob> {
   const inv = "payments" in quote ? (quote as Invoice) : null;
-  const images = await loadImages(quote);
+  const [images, doc0] = await Promise.all([
+    loadImages(quote),
+    Promise.resolve(new jsPDF({ unit: "mm", format: "a4" })),
+  ]);
+  const doc = doc0;
+  const FONT = await registerBodyFont(doc);
   const logoData = images[APP_LOGO_URL];
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
   const contentW = pageW - margin * 2;
 
   // ── HEADER — plain white letterhead: title left, logo right ───────────────
-  const titleText = inv ? "TAX INVOICE" : settings.docTitle.toUpperCase();
-  doc.setFont("helvetica", "bold");
+  const titleText = inv ? "Tax Invoice" : settings.docTitle;
+  doc.setFont(FONT, "bold");
   doc.setFontSize(21);
   doc.setTextColor(...TEXT);
   doc.text(safe(titleText), margin, 20);
@@ -150,27 +184,27 @@ export async function generateQuotationPdf(
     .flatMap((l) => doc.splitTextToSize(l, detailMaxW) as string[]);
 
   let y = 42;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT, "bold");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   doc.text("TO,", margin, y);
 
   // Right column: quote/bill no + date, aligned with the "TO," row
   const rightX = pageW - margin;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT, "bold");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   doc.text(inv ? "BILL NO" : "QUOTE NO", rightX, y, { align: "right" });
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT, "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(...TEXT);
   doc.text(safe(quote.number), rightX, y + 5, { align: "right" });
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT, "bold");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   doc.text("DATE", rightX, y + 11, { align: "right" });
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT, "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(...TEXT);
   doc.text(safe(formatDate(quote.date)), rightX, y + 16, { align: "right" });
@@ -178,33 +212,33 @@ export async function generateQuotationPdf(
   let ry = y + 16;
   if (inv?.quotationNumber) {
     ry += 6;
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text("REF. QUOTATION", rightX, ry - 5, { align: "right" });
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(9);
     doc.setTextColor(...TEXT);
     doc.text(safe(inv.quotationNumber), rightX, ry, { align: "right" });
   }
   if (settings.company.salesPerson) {
     ry += 6;
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text("SALES BY", rightX, ry - 5, { align: "right" });
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(9);
     doc.setTextColor(...TEXT);
     doc.text(safe(settings.company.salesPerson), rightX, ry, { align: "right" });
   }
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT, "bold");
   doc.setFontSize(12.5);
   doc.setTextColor(...TEXT);
   doc.text(safe(quote.clientSnapshot.name), margin, y + 6);
 
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT, "normal");
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
   let cy = y + 11.5;
@@ -223,7 +257,7 @@ export async function generateQuotationPdf(
   const sectionHeading = (title: string) => {
     doc.setFillColor(...RED);
     doc.rect(margin, y - 3.4, 1.2, 4.4, "F");
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(10);
     doc.setTextColor(...TEXT);
     doc.text(title, margin + 3.6, y);
@@ -239,7 +273,7 @@ export async function generateQuotationPdf(
   // ── ITEMS TABLE — plain grid, no dark fills ────────────────────────────────
   const rowImgH = 24;
   const SPEC_LINE_H = 3.6;
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT, "normal");
   doc.setFontSize(8.5);
   const body = quote.items.map((it, idx) => {
     const lines: string[] = [];
@@ -281,7 +315,7 @@ export async function generateQuotationPdf(
     // Keep table rows clear of the footer.
     margin: { left: margin, right: margin, bottom: 20 },
     styles: {
-      font: "helvetica",
+      font: FONT,
       fontSize: 8.5,
       cellPadding: 3,
       lineColor: LINE,
@@ -353,7 +387,7 @@ export async function generateQuotationPdf(
         }
         const specs = raw?._specs ?? [];
         if (specs.length) {
-          doc.setFont("helvetica", "normal");
+          doc.setFont(FONT, "normal");
           doc.setFontSize(8.5);
           doc.setTextColor(...TEXT);
           let sy = data.cell.y + data.cell.height - specs.length * SPEC_LINE_H - 2.5 + 3;
@@ -389,7 +423,7 @@ export async function generateQuotationPdf(
     ],
     margin: { left: margin, right: margin, bottom: 20 },
     styles: {
-      font: "helvetica",
+      font: FONT,
       fontSize: 9,
       cellPadding: 2.5,
       fontStyle: "bold",
@@ -434,7 +468,7 @@ export async function generateQuotationPdf(
 
   // LEFT — summary stats (+ bank details on bills)
   let ly = boxTop + 1;
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT, "normal");
   doc.setFontSize(9);
   doc.setTextColor(...TEXT);
   const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
@@ -462,12 +496,12 @@ export async function generateQuotationPdf(
       .map((l) => safe(l as string));
     if (bankLines.length > 0) {
       ly += 3.5;
-      doc.setFont("helvetica", "bold");
+      doc.setFont(FONT, "bold");
       doc.setFontSize(8.5);
       doc.setTextColor(...RED);
       doc.text("BANK / PAYMENT DETAILS", margin, ly);
       ly += 4.5;
-      doc.setFont("helvetica", "normal");
+      doc.setFont(FONT, "normal");
       doc.setFontSize(8);
       doc.setTextColor(...TEXT);
       for (const l of bankLines) {
@@ -491,7 +525,7 @@ export async function generateQuotationPdf(
   doc.setDrawColor(...LINE);
   doc.setLineWidth(0.25);
   for (const [label, value] of totalsData) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(9);
     doc.setTextColor(...TEXT);
     doc.text(safe(label), rightX2, ty + 4.6);
@@ -506,7 +540,7 @@ export async function generateQuotationPdf(
   doc.setLineWidth(0.6);
   doc.line(rightX2, ty, rightX2 + rightW2, ty);
   ty += 5.2;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT, "bold");
   doc.setFontSize(11);
   doc.setTextColor(...RED);
   doc.text("GRAND TOTAL", rightX2, ty);
@@ -519,7 +553,7 @@ export async function generateQuotationPdf(
 
   // Bills: amount received + balance due
   if (inv) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(9);
     doc.setTextColor(16, 122, 87);
     doc.text("Received", rightX2, ty + 4.6);
@@ -529,7 +563,7 @@ export async function generateQuotationPdf(
     doc.line(rightX2, ty + rowH, rightX2 + rightW2, ty + rowH);
     ty += rowH + 2;
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont(FONT, "bold");
     doc.setFontSize(11);
     doc.setTextColor(...TEXT);
     doc.text("BALANCE DUE", rightX2, ty + 4.6);
@@ -545,7 +579,7 @@ export async function generateQuotationPdf(
 
   // ── PAYMENT HISTORY (bills only) ──────────────────────────────────────────
   if (inv && inv.payments.length > 0) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(8.6);
     const payRows = inv.payments.map((p) => {
       const left = safe(`${formatDate(p.date)}   |   ${p.mode}${p.note ? ` -- ${p.note}` : ""}`);
@@ -564,11 +598,11 @@ export async function generateQuotationPdf(
     for (let i = 0; i < payRows.length; i++) {
       doc.setFillColor(...RED);
       doc.circle(margin + 5.5, py - 1.3, 0.9, "F");
-      doc.setFont("helvetica", "normal");
+      doc.setFont(FONT, "normal");
       doc.setFontSize(8.6);
       doc.setTextColor(...TEXT);
       doc.text(payRows[i].lines, margin + 10, py);
-      doc.setFont("helvetica", "bold");
+      doc.setFont(FONT, "bold");
       doc.text(payRows[i].amount, margin + contentW - 4.5, py, { align: "right" });
       py += rowHs[i];
     }
@@ -578,7 +612,7 @@ export async function generateQuotationPdf(
   // ── TERMS & CONDITIONS — quotations only ───────────────────────────────────
   const terms = inv ? [] : settings.termsAndConditions.filter((t) => t.trim());
   if (terms.length > 0) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(8.3);
     const panelPad = 5.5;
     const colGap = 10;
@@ -604,7 +638,7 @@ export async function generateQuotationPdf(
     const drawTerm = (idx: number, x: number, ty2: number): number => {
       doc.setFillColor(...RED);
       doc.circle(x + 1, ty2 - 1.2, 0.9, "F");
-      doc.setFont("helvetica", "normal");
+      doc.setFont(FONT, "normal");
       doc.setFontSize(8.3);
       doc.setTextColor(...TEXT);
       doc.text(wrapped[idx], x + 4.5, ty2);
@@ -654,7 +688,7 @@ export async function generateQuotationPdf(
   y += accept.length * 4.5 + 14;
 
   const sigW = 62;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT, "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(...TEXT);
   doc.text(`For ${safe(settings.company.name)}`, pageW - margin, y - 2, { align: "right" });
@@ -664,7 +698,7 @@ export async function generateQuotationPdf(
   doc.setLineWidth(0.4);
   doc.line(margin, y, margin + sigW, y);
   doc.line(pageW - margin - sigW, y, pageW - margin, y);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT, "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   doc.text("Customer Signature & Date", margin, y + 4.2);
@@ -724,7 +758,7 @@ export async function generateQuotationPdf(
     doc.setLineWidth(0.3);
     doc.line(margin, pageH - 15, pageW - margin, pageH - 15);
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setFontSize(6.6);
     doc.setTextColor(...GRAY);
     const contactLines = (doc.splitTextToSize(footContact, contentW) as string[]).slice(0, 1);
@@ -735,7 +769,7 @@ export async function generateQuotationPdf(
     doc.setFont("helvetica", "italic");
     doc.setTextColor(...RED);
     doc.text(safe(BRAND_TAGLINE), pageW / 2, pageH - 5.5, { align: "center" });
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT, "normal");
     doc.setTextColor(...GRAY);
     doc.text(`Page ${i} of ${total}`, pageW - margin, pageH - 5.5, { align: "right" });
   }

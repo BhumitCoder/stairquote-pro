@@ -5,9 +5,12 @@ import { BRAND_TAGLINE } from "@/lib/settings-defaults";
 // On-screen replica of the generated PDF (see lib/pdf.ts) — instant, crisp and
 // mobile-friendly, unlike embedding the PDF blob in an iframe.
 // Renders both quotations and bills (tax invoices) — pass either document.
+// A clean, minimal letterhead: plenty of whitespace, thin hairline rules and
+// a single red accent — built to read as simple and trustworthy to a client.
 const RED = "#E8484D";
-const DARK = "#1c1c26";
-const DARK_MID = "#2d2d3a";
+const TEXT = "#23232D";
+const GRAY = "#7D8091";
+const LINE = "#DEDEE6";
 
 export function QuotationPreview({
   quote,
@@ -32,138 +35,165 @@ export function QuotationPreview({
 
   return (
     <div className="relative overflow-hidden bg-white text-[13px] leading-snug text-zinc-800 shadow-sm">
-      {/* Centered logo watermark — dark silhouette at very low opacity */}
+      {/* Centered logo watermark, very low opacity — the logo is already dark/coloured */}
       <img
         src="/logo.png"
         alt=""
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[55%] max-w-[480px] -translate-x-1/2 -translate-y-1/2 select-none"
-        style={{ filter: "brightness(0) saturate(0)", opacity: 0.05 }}
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[50%] max-w-[420px] -translate-x-1/2 -translate-y-1/2 select-none"
+        style={{ opacity: 0.05 }}
       />
-      {/* Header */}
-      <div style={{ background: DARK }} className="relative px-5 py-4 text-white sm:px-7">
-        {/* Brand motif: red staircase climbing out of the accent stripe */}
-        <div
-          className="absolute bottom-0 left-1/2 hidden -translate-x-1/2 items-end sm:flex"
-          aria-hidden
-        >
-          {[1, 2, 3, 4, 5].map((s) => (
-            <span key={s} style={{ background: RED, height: s * 5, width: 16 }} />
-          ))}
-        </div>
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-lg font-bold tracking-wide sm:text-xl">
-              {settings.company.name || "Company Name"}
-            </div>
-            <div style={{ color: RED }} className="mt-0.5 text-[11px] italic">
-              {BRAND_TAGLINE}
-            </div>
-            <div className="mt-1 space-y-0.5 text-[11px] text-zinc-300">
-              {settings.company.address
-                .split(",")
-                .map((part) => part.trim())
-                .filter(Boolean)
-                .map((part, i) => (
-                  <div key={i}>{part}</div>
-                ))}
-              {settings.company.website && <div>{settings.company.website}</div>}
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <img
-              src="/logo.png"
-              alt=""
-              className="h-12 w-auto max-w-[140px] object-contain sm:h-14"
-            />
-            <div className="space-y-0.5 text-right text-[11px] text-zinc-300">
-              {settings.company.phones && <div>Ph: {settings.company.phones}</div>}
-              {settings.company.email && <div>Email: {settings.company.email}</div>}
-              {settings.company.gst && <div>GSTIN: {settings.company.gst}</div>}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div style={{ background: RED }} className="h-1" />
 
-      {/* Bill-to strip */}
-      <div style={{ background: DARK_MID }} className="px-5 py-3 text-white sm:px-7">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-              CLIENT
-            </div>
-            <div className="mt-0.5 font-semibold">{c.name}</div>
-            <div className="mt-0.5 space-y-0.5 text-[11px] text-zinc-300">
-              {c.org && <div>{c.org}</div>}
-              {c.phone && <div>Mobile: {c.phone}</div>}
-              {c.email && <div>{c.email}</div>}
-              {clientAddress && <div>{clientAddress}</div>}
-            </div>
+      {/* Header — plain white letterhead: title left, logo right */}
+      <div className="relative flex items-start justify-between gap-4 px-5 pt-6 sm:px-7">
+        <div>
+          <div className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: TEXT }}>
+            {inv ? "Tax Invoice" : settings.docTitle}
           </div>
-          <div className="flex shrink-0 gap-6 text-left sm:text-right">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                {inv ? "Bill No" : "Quote No"}
-              </div>
-              <div className="mt-0.5 text-sm font-semibold">{quote.number}</div>
-              {inv?.quotationNumber && (
-                <div className="mt-0.5 text-[10px] text-zinc-400">Ref: {inv.quotationNumber}</div>
-              )}
+          <span style={{ background: RED }} className="mt-2 block h-1 w-10 rounded-full" />
+        </div>
+        <img src="/logo.png" alt="" className="h-14 w-auto shrink-0 object-contain sm:h-16" />
+      </div>
+      <div style={{ background: LINE }} className="relative z-10 mx-5 mt-5 h-px sm:mx-7" />
+
+      {/* Client + meta row */}
+      <div className="relative z-10 flex flex-col gap-4 px-5 pt-5 sm:flex-row sm:items-start sm:justify-between sm:px-7">
+        <div className="min-w-0">
+          <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: GRAY }}>
+            TO,
+          </div>
+          <div className="mt-1 text-base font-bold" style={{ color: TEXT }}>
+            {c.name}
+          </div>
+          <div className="mt-1 space-y-0.5 text-[12px]" style={{ color: GRAY }}>
+            {c.org && <div>{c.org}</div>}
+            {c.phone && <div>Mobile: {c.phone}</div>}
+            {c.email && <div>{c.email}</div>}
+            {clientAddress && <div>{clientAddress}</div>}
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-6 text-left sm:text-right">
+          <div>
+            <div
+              className="text-[10px] font-bold uppercase tracking-widest"
+              style={{ color: GRAY }}
+            >
+              {inv ? "Bill No" : "Quote No"}
             </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                Date
-              </div>
-              <div className="mt-0.5 text-sm">{formatDate(quote.date)}</div>
+            <div className="mt-1 text-sm" style={{ color: TEXT }}>
+              {quote.number}
+            </div>
+            {inv?.quotationNumber && (
+              <>
+                <div
+                  className="mt-2 text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: GRAY }}
+                >
+                  Ref. Quotation
+                </div>
+                <div className="mt-1 text-[12px]" style={{ color: TEXT }}>
+                  {inv.quotationNumber}
+                </div>
+              </>
+            )}
+          </div>
+          <div>
+            <div
+              className="text-[10px] font-bold uppercase tracking-widest"
+              style={{ color: GRAY }}
+            >
+              Date
+            </div>
+            <div className="mt-1 text-sm" style={{ color: TEXT }}>
+              {formatDate(quote.date)}
             </div>
             {settings.company.salesPerson && (
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+              <>
+                <div
+                  className="mt-2 text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: GRAY }}
+                >
                   Sales By
                 </div>
-                <div className="mt-0.5 text-sm">{settings.company.salesPerson}</div>
-              </div>
+                <div className="mt-1 text-[12px]" style={{ color: TEXT }}>
+                  {settings.company.salesPerson}
+                </div>
+              </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Title — letterspaced, flanked by fine red rules */}
-      <div className="flex items-center justify-center gap-4 pt-6">
-        <span style={{ background: RED }} className="h-[2px] w-12 rounded-full" />
-        <span className="text-base font-bold uppercase tracking-[0.3em] text-zinc-900">
-          {inv ? "Tax Invoice" : settings.docTitle}
-        </span>
-        <span style={{ background: RED }} className="h-[2px] w-12 rounded-full" />
-      </div>
+      <div style={{ background: LINE }} className="relative z-10 mx-5 mt-5 h-px sm:mx-7" />
 
-      {/* Items table */}
-      <div className="overflow-x-auto px-4 pt-4 sm:px-6">
+      {/* Item description */}
+      <div className="relative z-10 px-5 pt-5 sm:px-7">
+        <SectionHeading>Item Description</SectionHeading>
+      </div>
+      <div className="relative z-10 overflow-x-auto px-5 pt-3 sm:px-7">
         <table className="w-full min-w-[640px] border-collapse text-[12px]">
           <thead>
-            <tr style={{ background: DARK }} className="text-white">
-              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">#</th>
-              <th className="border border-zinc-200 px-2 py-2 text-left font-semibold">
+            <tr style={{ color: TEXT }}>
+              <th
+                className="border-b-2 px-2 py-2 text-center font-bold"
+                style={{ borderColor: TEXT }}
+              >
+                #
+              </th>
+              <th
+                className="border-b-2 px-2 py-2 text-left font-bold"
+                style={{ borderColor: TEXT }}
+              >
                 Description
               </th>
-              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">Width</th>
-              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">Height</th>
-              <th className="border border-zinc-200 px-2 py-2 text-center font-semibold">Qty</th>
-              <th className="border border-zinc-200 px-2 py-2 text-right font-semibold">
+              <th
+                className="border-b-2 px-2 py-2 text-center font-bold"
+                style={{ borderColor: TEXT }}
+              >
+                Width
+              </th>
+              <th
+                className="border-b-2 px-2 py-2 text-center font-bold"
+                style={{ borderColor: TEXT }}
+              >
+                Height
+              </th>
+              <th
+                className="border-b-2 px-2 py-2 text-center font-bold"
+                style={{ borderColor: TEXT }}
+              >
+                Qty
+              </th>
+              <th
+                className="border-b-2 px-2 py-2 text-right font-bold"
+                style={{ borderColor: TEXT }}
+              >
                 Sqft/Rft
               </th>
-              <th className="border border-zinc-200 px-2 py-2 text-right font-semibold">Rate</th>
-              <th className="border border-zinc-200 px-2 py-2 text-right font-semibold">Amount</th>
+              <th
+                className="border-b-2 px-2 py-2 text-right font-bold"
+                style={{ borderColor: TEXT }}
+              >
+                Rate
+              </th>
+              <th
+                className="border-b-2 px-2 py-2 text-right font-bold"
+                style={{ borderColor: TEXT }}
+              >
+                Amount
+              </th>
             </tr>
           </thead>
           <tbody>
             {quote.items.map((it, idx) => (
               <tr key={idx} className={idx % 2 === 1 ? "bg-zinc-50" : "bg-white"}>
-                <td className="border border-zinc-200 px-2 py-2 text-center align-top">
+                <td
+                  className="border-b px-2 py-2 text-center align-top"
+                  style={{ borderColor: LINE }}
+                >
                   {idx + 1}
                 </td>
-                <td className="border border-zinc-200 px-2 py-2 align-top">
+                <td className="border-b px-2 py-2 align-top" style={{ borderColor: LINE }}>
                   <div className="space-y-1.5">
                     <div className="flex gap-2.5">
                       {it.imageUrl && (
@@ -174,18 +204,18 @@ export function QuotationPreview({
                         />
                       )}
                       <div className="min-w-0 space-y-0.5">
-                        <div className="font-semibold">{it.name}</div>
-                        {it.location && (
-                          <div className="text-zinc-600">Location: {it.location}</div>
-                        )}
+                        <div className="font-semibold" style={{ color: TEXT }}>
+                          {it.name}
+                        </div>
+                        {it.location && <div style={{ color: GRAY }}>Location: {it.location}</div>}
                         {(it.material || it.finish) && (
-                          <div className="text-zinc-600">
+                          <div style={{ color: GRAY }}>
                             {[it.material, it.finish].filter(Boolean).join(" / ")}
                           </div>
                         )}
-                        {!!it.steps && <div className="text-zinc-600">Steps: {it.steps}</div>}
+                        {!!it.steps && <div style={{ color: GRAY }}>Steps: {it.steps}</div>}
                         {!!it.weight && (
-                          <div className="text-zinc-600">Weight: {formatNum(it.weight, 2)} Kg</div>
+                          <div style={{ color: GRAY }}>Weight: {formatNum(it.weight, 2)} Kg</div>
                         )}
                       </div>
                     </div>
@@ -194,45 +224,67 @@ export function QuotationPreview({
                         {it.specs
                           .filter((s) => s.trim())
                           .map((s, i) => (
-                            <div key={i} className="text-zinc-600">
-                              • {s}
+                            <div key={i} style={{ color: GRAY }}>
+                              - {s}
                             </div>
                           ))}
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="border border-zinc-200 px-2 py-2 text-center align-top">
+                <td
+                  className="border-b px-2 py-2 text-center align-top"
+                  style={{ borderColor: LINE }}
+                >
                   {it.width || "-"}
                 </td>
-                <td className="border border-zinc-200 px-2 py-2 text-center align-top">
+                <td
+                  className="border-b px-2 py-2 text-center align-top"
+                  style={{ borderColor: LINE }}
+                >
                   {it.height || "-"}
                 </td>
-                <td className="border border-zinc-200 px-2 py-2 text-center align-top">{it.qty}</td>
-                <td className="border border-zinc-200 px-2 py-2 text-right align-top">
+                <td
+                  className="border-b px-2 py-2 text-center align-top"
+                  style={{ borderColor: LINE }}
+                >
+                  {it.qty}
+                </td>
+                <td
+                  className="border-b px-2 py-2 text-right align-top"
+                  style={{ borderColor: LINE }}
+                >
                   {it.rateMode === "lumpsum" ? "-" : formatNum(it.measureValue * it.qty, 2)}
                 </td>
-                <td className="border border-zinc-200 px-2 py-2 text-right align-top">
+                <td
+                  className="border-b px-2 py-2 text-right align-top"
+                  style={{ borderColor: LINE }}
+                >
                   {it.rateMode === "lumpsum" ? "Lump Sum" : formatNum(it.rate, 2)}
                 </td>
-                <td className="border border-zinc-200 px-2 py-2 text-right align-top font-medium">
+                <td
+                  className="border-b px-2 py-2 text-right align-top font-medium"
+                  style={{ borderColor: LINE, color: TEXT }}
+                >
                   {formatNum(it.amount, 2)}
                 </td>
               </tr>
             ))}
-            <tr className="bg-zinc-100 font-bold">
-              <td className="border border-zinc-200 px-2 py-2" />
-              <td className="border border-zinc-200 px-2 py-2">TOTAL</td>
-              <td className="border border-zinc-200 px-2 py-2" />
-              <td className="border border-zinc-200 px-2 py-2" />
-              <td className="border border-zinc-200 px-2 py-2 text-center">
+            <tr className="bg-zinc-50 font-bold" style={{ color: TEXT }}>
+              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
+              <td className="border-b px-2 py-2" style={{ borderColor: LINE }}>
+                TOTAL
+              </td>
+              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
+              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
+              <td className="border-b px-2 py-2 text-center" style={{ borderColor: LINE }}>
                 {quote.totals.itemCount}
               </td>
-              <td className="border border-zinc-200 px-2 py-2 text-right">
+              <td className="border-b px-2 py-2 text-right" style={{ borderColor: LINE }}>
                 {formatNum(quote.totals.area, 2)}
               </td>
-              <td className="border border-zinc-200 px-2 py-2" />
-              <td className="border border-zinc-200 px-2 py-2 text-right">
+              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
+              <td className="border-b px-2 py-2 text-right" style={{ borderColor: LINE }}>
                 {formatNum(quote.subTotal, 2)}
               </td>
             </tr>
@@ -240,10 +292,13 @@ export function QuotationPreview({
         </table>
       </div>
 
-      {/* Summary + totals */}
-      <div className="flex flex-col gap-5 px-4 pt-5 sm:flex-row sm:px-6">
+      {/* Project costing */}
+      <div className="relative z-10 px-5 pt-7 sm:px-7">
+        <SectionHeading>Project Costing</SectionHeading>
+      </div>
+      <div className="relative z-10 flex flex-col gap-5 px-5 pt-4 sm:flex-row sm:px-7">
         <div className="flex-1 space-y-4">
-          <div className="space-y-1 text-[12px] font-semibold">
+          <div className="space-y-1 text-[12px] font-semibold" style={{ color: TEXT }}>
             <div>Total Items : {quote.totals.itemCount}</div>
             <div>Total Area : {formatNum(quote.totals.area, 2)} sqft</div>
             <div>Total Weight : {formatNum(quote.totals.weight, 2)} Kg</div>
@@ -256,10 +311,13 @@ export function QuotationPreview({
               >
                 Bank / Payment Details
               </div>
-              <div className="mt-1 space-y-0.5 text-[12px]">
+              <div className="mt-1 space-y-0.5 text-[12px]" style={{ color: TEXT }}>
                 {bankLines.map(([k, v]) => (
                   <div key={k}>
-                    <span className="inline-block w-20 text-zinc-500">{k}</span>: {v}
+                    <span className="inline-block w-20" style={{ color: GRAY }}>
+                      {k}
+                    </span>
+                    : {v}
                   </div>
                 ))}
               </div>
@@ -267,47 +325,46 @@ export function QuotationPreview({
           )}
         </div>
         <div className="w-full shrink-0 sm:w-80">
-          <div className="divide-y divide-zinc-200 border border-zinc-200">
-            <div className="flex items-center justify-between bg-zinc-50 px-3 py-2">
-              <span>Sub Total</span>
-              <span>{formatINR(quote.subTotal)}</span>
-            </div>
-            <div className="flex items-center justify-between bg-zinc-50 px-3 py-2">
-              <span>
-                Discount
-                {quote.discount.mode === "percent" && quote.discount.value
+          <div className="space-y-0 text-[13px]">
+            <Row label="Sub Total" value={formatINR(quote.subTotal)} />
+            <Row
+              label={`Discount${
+                quote.discount.mode === "percent" && quote.discount.value
                   ? ` (${quote.discount.value}%)`
-                  : ""}
-              </span>
-              <span>- {formatINR(quote.discountAmt)}</span>
-            </div>
-            <div className="flex items-center justify-between bg-zinc-50 px-3 py-2">
-              <span>GST @ {quote.gstPercent}%</span>
-              <span>{formatINR(quote.gstAmt)}</span>
-            </div>
+                  : ""
+              }`}
+              value={`- ${formatINR(quote.discountAmt)}`}
+            />
+            <Row label={`GST @ ${quote.gstPercent}%`} value={formatINR(quote.gstAmt)} last />
             <div
-              style={{ background: RED }}
-              className="flex items-center justify-between px-3 py-2.5 font-bold text-white"
+              className="flex items-center justify-between border-t-2 py-2.5 font-bold"
+              style={{ borderColor: RED, color: RED }}
             >
               <span>GRAND TOTAL</span>
               <span>{formatINR(quote.grandTotal)}</span>
             </div>
             {inv && (
               <>
-                <div className="flex items-center justify-between bg-zinc-50 px-3 py-2 text-emerald-700">
+                <div
+                  className="flex items-center justify-between border-b py-2 text-emerald-700"
+                  style={{ borderColor: LINE }}
+                >
                   <span>Received</span>
                   <span>- {formatINR(inv.amountPaid)}</span>
                 </div>
                 <div
-                  style={{ background: DARK }}
-                  className="flex items-center justify-between px-3 py-2.5 font-bold text-white"
+                  className="flex items-center justify-between border-b-2 py-2.5 font-bold"
+                  style={{ borderColor: TEXT, color: TEXT }}
                 >
                   <span>BALANCE DUE</span>
                   <span>{formatINR(inv.balanceDue)}</span>
                 </div>
               </>
             )}
-            <div className="flex items-center justify-between bg-zinc-100 px-3 py-2 text-[12px]">
+            <div
+              className="flex items-center justify-between pt-2 text-[12px]"
+              style={{ color: GRAY }}
+            >
               <span>Avg Price / sqft</span>
               <span>{formatINR(avg)}</span>
             </div>
@@ -315,17 +372,41 @@ export function QuotationPreview({
         </div>
       </div>
 
+      {/* Loading notice — quotations only */}
+      {!inv && settings.loadingNotice && (
+        <div className="relative z-10 px-5 pt-6 sm:px-7">
+          <p className="text-[12px]" style={{ color: TEXT }}>
+            <span className="font-bold" style={{ color: RED }}>
+              Note:{" "}
+            </span>
+            {settings.loadingNotice}
+          </p>
+        </div>
+      )}
+
+      {/* Payment condition — quotations only; a bill shows actual payments instead */}
+      {!inv && settings.paymentTerms && (
+        <div className="relative z-10 px-5 pt-6 sm:px-7">
+          <SectionHeading>Payment Condition</SectionHeading>
+          <div className="mt-3 space-y-1.5 text-[12px]" style={{ color: TEXT }}>
+            {settings.paymentTerms
+              .split("\n")
+              .map((l) => l.trim())
+              .filter(Boolean)
+              .map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Payment history — bills only */}
       {inv && inv.payments.length > 0 && (
-        <div className="px-4 pt-6 sm:px-6">
+        <div className="relative z-10 px-5 pt-6 sm:px-7">
           <SectionHeading>Payment History</SectionHeading>
-          <div className="mt-2.5 space-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700">
+          <div className="mt-3 divide-y text-[12px]" style={{ borderColor: LINE, color: TEXT }}>
             {inv.payments.map((p) => (
-              <div key={p.id} className="flex items-start gap-2">
-                <span
-                  style={{ background: RED }}
-                  className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
-                />
+              <div key={p.id} className="flex items-start justify-between gap-2 py-1.5">
                 <span className="min-w-0 flex-1">
                   {formatDate(p.date)} &nbsp;|&nbsp; {p.mode}
                   {p.note ? ` — ${p.note}` : ""}
@@ -337,54 +418,19 @@ export function QuotationPreview({
         </div>
       )}
 
-      {/* Loading notice — quotations only */}
-      {!inv && settings.loadingNotice && (
-        <div className="px-4 pt-6 sm:px-6">
-          <div
-            style={{ borderLeftColor: RED }}
-            className="border-l-4 bg-red-50 px-3.5 py-2.5 text-[11px] font-bold text-red-700"
-          >
-            {settings.loadingNotice}
-          </div>
-        </div>
-      )}
-
-      {/* Payment terms — quotations only; a bill shows actual payments instead */}
-      {!inv && settings.paymentTerms && (
-        <div className="px-4 pt-6 sm:px-6">
-          <SectionHeading>Payment Terms</SectionHeading>
-          <div className="mt-2.5 space-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700">
-            {settings.paymentTerms
-              .split("\n")
-              .map((l) => l.trim())
-              .filter(Boolean)
-              .map((line, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span
-                    style={{ background: RED }}
-                    className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
-                  />
-                  <span>{line}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
       {/* Terms & conditions — quotations only */}
       {!inv && settings.termsAndConditions.some((t) => t.trim()) && (
-        <div className="px-4 pt-6 sm:px-6">
+        <div className="relative z-10 px-5 pt-6 sm:px-7">
           <SectionHeading>Terms &amp; Conditions</SectionHeading>
-          <ol className="mt-2.5 grid gap-x-8 gap-y-1.5 rounded-lg bg-zinc-50 px-4 py-3 text-[12px] text-zinc-700 sm:grid-cols-2">
+          <ol
+            className="mt-3 grid gap-x-8 gap-y-1.5 text-[12px] sm:grid-cols-2"
+            style={{ color: TEXT }}
+          >
             {settings.termsAndConditions
               .filter((t) => t.trim())
               .map((t, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span
-                    style={{ background: RED }}
-                    className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
-                  />
-                  <span>{t}</span>
+                <li key={i}>
+                  {i + 1}. {t}
                 </li>
               ))}
           </ol>
@@ -392,8 +438,8 @@ export function QuotationPreview({
       )}
 
       {/* Acceptance + signatures */}
-      <div className="px-4 pt-7 sm:px-6">
-        <p className="text-[11px] italic text-zinc-500">
+      <div className="relative z-10 px-5 pt-7 sm:px-7">
+        <p className="text-[11px] italic" style={{ color: GRAY }}>
           {inv
             ? "Received the above goods / services in good order and condition."
             : "I hereby accept the estimate as per above mentioned price and specifications."}
@@ -401,15 +447,15 @@ export function QuotationPreview({
         <div className="mt-6 flex items-end justify-between gap-6 text-[11px]">
           <div>
             <div className="h-10" />
-            <div className="w-40 border-t border-zinc-400 pt-1 text-zinc-500 sm:w-48">
+            <div className="w-40 border-t pt-1 sm:w-48" style={{ borderColor: LINE, color: GRAY }}>
               Customer Signature &amp; Date
             </div>
           </div>
           <div className="text-right">
-            <div className="mb-6 text-[11px] font-bold text-zinc-800">
+            <div className="mb-6 text-[11px] font-bold" style={{ color: TEXT }}>
               For {settings.company.name}
             </div>
-            <div className="w-40 border-t border-zinc-400 pt-1 text-zinc-500 sm:w-48">
+            <div className="w-40 border-t pt-1 sm:w-48" style={{ borderColor: LINE, color: GRAY }}>
               Authorized Signatory
             </div>
           </div>
@@ -419,23 +465,52 @@ export function QuotationPreview({
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer — plain contact strip, no dark bar */}
       <div
-        style={{ background: DARK }}
-        className="flex items-center justify-between px-5 py-2 text-[10px] text-zinc-400 sm:px-7"
+        className="relative z-10 border-t px-5 py-3 text-[10px] sm:px-7"
+        style={{ borderColor: LINE, color: GRAY }}
       >
-        <span>{quote.number}</span>
-        <span className="italic">{BRAND_TAGLINE}</span>
-        <span>Page 1</span>
+        <div className="text-center">
+          {[
+            settings.company.address,
+            settings.company.phones && `Ph: ${settings.company.phones}`,
+            settings.company.email && `Email: ${settings.company.email}`,
+            settings.company.website,
+          ]
+            .filter(Boolean)
+            .join("   |   ")}
+        </div>
+        <div className="mt-1.5 flex items-center justify-between">
+          <span>{quote.number}</span>
+          <span className="italic" style={{ color: RED }}>
+            {BRAND_TAGLINE}
+          </span>
+          <span>Page 1</span>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <div
+      className={`flex items-center justify-between py-2 ${last ? "" : "border-b"}`}
+      style={{ borderColor: LINE, color: TEXT }}
+    >
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   );
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-b border-zinc-200 pb-1.5">
-      <div className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-zinc-900">
+    <div className="border-b pb-1.5" style={{ borderColor: LINE }}>
+      <div
+        className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide"
+        style={{ color: TEXT }}
+      >
         <span style={{ background: RED }} className="h-3.5 w-1 shrink-0 rounded-sm" />
         {children}
       </div>

@@ -5,13 +5,13 @@ import { formatDate } from "./format";
 import { BRAND_TAGLINE } from "./settings-defaults";
 import { urlToDataUrl } from "./storage";
 
-// ─── Brand colours ───────────────────────────────────────────────────────────
+// ─── Brand colours — clean white letterhead, red used only as an accent ──────
 const RED: [number, number, number] = [232, 72, 77];
-const DARK: [number, number, number] = [28, 28, 38]; // header bg
-const DARK_MID: [number, number, number] = [45, 45, 58]; // sub-header bg
-const WHITE: [number, number, number] = [255, 255, 255];
-const LIGHT_GRAY: [number, number, number] = [247, 247, 250];
 const TEXT: [number, number, number] = [35, 35, 45];
+const GRAY: [number, number, number] = [125, 128, 145];
+const LINE: [number, number, number] = [222, 222, 230];
+const PANEL: [number, number, number] = [249, 249, 251];
+const WHITE: [number, number, number] = [255, 255, 255];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,34 +62,6 @@ interface ImageCache {
   [url: string]: string | null;
 }
 
-// The logo is white-on-dark, so on white paper it would be invisible.
-// Re-tint it into a dark silhouette (respecting transparency) for the watermark.
-async function tintLogo(
-  dataUrl: string,
-  color: string,
-): Promise<{ url: string; w: number; h: number } | null> {
-  try {
-    const img = new Image();
-    img.src = dataUrl;
-    await new Promise<void>((res, rej) => {
-      img.onload = () => res();
-      img.onerror = rej;
-    });
-    const c = document.createElement("canvas");
-    c.width = img.naturalWidth;
-    c.height = img.naturalHeight;
-    const ctx = c.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
-    ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, c.width, c.height);
-    return { url: c.toDataURL("image/png"), w: c.width, h: c.height };
-  } catch {
-    return null;
-  }
-}
-
 async function loadImages(quote: Quotation | Invoice): Promise<ImageCache> {
   const cache: ImageCache = {};
   const urls = new Set<string>();
@@ -106,65 +78,46 @@ async function loadImages(quote: Quotation | Invoice): Promise<ImageCache> {
 // ─── Main PDF generator ───────────────────────────────────────────────────────
 
 // Renders both quotations and bills (tax invoices) — pass either document.
+// Layout is a clean, minimal white letterhead: plenty of whitespace, thin
+// hairline rules, and a single red accent — built to feel simple and
+// trustworthy to a client rather than "designed".
 export async function generateQuotationPdf(
   quote: Quotation | Invoice,
   settings: AppSettings,
 ): Promise<Blob> {
   const inv = "payments" in quote ? (quote as Invoice) : null;
   const images = await loadImages(quote);
+  const logoData = images[APP_LOGO_URL];
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 10;
+  const margin = 12;
   const contentW = pageW - margin * 2;
 
-  // ── HEADER — minimal letterhead: brand only, no clutter ───────────────────
-  // Full address & contact details live in the letterhead footer instead.
-  const headerH = 28;
-  doc.setFillColor(...DARK);
-  doc.rect(0, 0, pageW, headerH, "F");
-
-  // Red accent stripe at bottom of header
-  doc.setFillColor(...RED);
-  doc.rect(0, headerH - 1.5, pageW, 1.5, "F");
-
-  // Brand motif: a small red staircase climbing out of the accent stripe,
-  // centered in the header's empty middle.
-  {
-    const stepW = 6;
-    const stepH = 1.9;
-    const steps = 5;
-    const x0 = pageW / 2 - (steps * stepW) / 2;
-    doc.setFillColor(...RED);
-    for (let s = 0; s < steps; s++) {
-      doc.rect(x0 + s * stepW, headerH - 1.5 - (s + 1) * stepH, stepW, (s + 1) * stepH, "F");
-    }
-  }
-
-  // Company name — generous letterspacing, vertically centered
+  // ── HEADER — plain white letterhead: title left, logo right ───────────────
+  const titleText = inv ? "TAX INVOICE" : settings.docTitle.toUpperCase();
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...WHITE);
-  doc.text(safe(settings.company.name || "Company Name"), margin, 13.5, { charSpace: 0.7 });
+  doc.setFontSize(21);
+  doc.setTextColor(...TEXT);
+  doc.text(safe(titleText), margin, 20);
 
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
-  doc.setTextColor(...RED);
-  doc.text(safe(BRAND_TAGLINE), margin, 19.5);
+  // Small red accent rule under the title
+  doc.setFillColor(...RED);
+  doc.rect(margin, 23.5, 16, 1.1, "F");
 
-  // Logo (right, vertically centered)
-  const logoData = images[APP_LOGO_URL];
+  // Logo, top-right — the logo already carries the full wordmark, so nothing
+  // else needs to be duplicated next to it.
   if (logoData) {
     try {
-      const logoW = 42;
-      const logoH2 = 16.5;
+      const logoW = 44;
+      const logoH = (logoW * 457) / 1152;
       doc.addImage(
         logoData,
         "PNG",
         pageW - margin - logoW,
-        (headerH - 1.5 - logoH2) / 2,
+        14 - logoH / 2 + 4,
         logoW,
-        logoH2,
+        logoH,
         undefined,
         "FAST",
       );
@@ -173,28 +126,11 @@ export async function generateQuotationPdf(
     }
   }
 
-  // Letterhead footer contents (measured now — the footer height sets how far
-  // content may flow on every page).
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  const contactStr = [
-    settings.company.address,
-    settings.company.phones && `Ph: ${settings.company.phones}`,
-    settings.company.email && `Email: ${settings.company.email}`,
-    settings.company.website,
-    settings.company.gst && `GSTIN: ${settings.company.gst}`,
-  ]
-    .filter(Boolean)
-    .map((l) => safe(l as string).replace(/\n/g, " "))
-    .join("   |   ");
-  const footContactLines = (doc.splitTextToSize(contactStr, contentW) as string[]).slice(0, 2);
-  const FOOT_H = 8 + footContactLines.length * 3.1;
-  const footReserve = FOOT_H + 2;
+  doc.setDrawColor(...LINE);
+  doc.setLineWidth(0.4);
+  doc.line(margin, 32, pageW - margin, 32);
 
-  // ── CLIENT + QUOTE META STRIP ──────────────────────────────────────────────
-  // Client details stacked one per line; the strip grows to fit them.
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  // ── CLIENT + META ROW ──────────────────────────────────────────────────────
   const clientAddress = [
     quote.clientSnapshot.address,
     quote.clientSnapshot.city,
@@ -202,7 +138,7 @@ export async function generateQuotationPdf(
   ]
     .filter(Boolean)
     .join(", ");
-  const detailMaxW = pageW - margin * 2 - 62; // keep clear of the quote-no block on the right
+  const detailMaxW = contentW - 62;
   const clientLines = [
     quote.clientSnapshot.org,
     quote.clientSnapshot.phone && `Mobile: ${quote.clientSnapshot.phone}`,
@@ -213,90 +149,96 @@ export async function generateQuotationPdf(
     .map((l) => safe(l as string))
     .flatMap((l) => doc.splitTextToSize(l, detailMaxW) as string[]);
 
-  const stripH = Math.max(22, 17.5 + clientLines.length * 4);
-  doc.setFillColor(...DARK_MID);
-  doc.rect(0, headerH, pageW, stripH, "F");
-
+  let y = 42;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(160, 165, 190);
-  doc.text("CLIENT", margin, headerH + 5.5);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...WHITE);
-  doc.text(safe(quote.clientSnapshot.name), margin, headerH + 11);
-
-  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(195, 200, 220);
-  let dy = headerH + 15.8;
-  for (const line of clientLines) {
-    doc.text(line, margin, dy);
-    dy += 4;
+  doc.setTextColor(...GRAY);
+  doc.text("TO,", margin, y);
+
+  // Right column: quote/bill no + date, aligned with the "TO," row
+  const rightX = pageW - margin;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text(inv ? "BILL NO" : "QUOTE NO", rightX, y, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...TEXT);
+  doc.text(safe(quote.number), rightX, y + 5, { align: "right" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text("DATE", rightX, y + 11, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...TEXT);
+  doc.text(safe(formatDate(quote.date)), rightX, y + 16, { align: "right" });
+
+  let ry = y + 16;
+  if (inv?.quotationNumber) {
+    ry += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text("REF. QUOTATION", rightX, ry - 5, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXT);
+    doc.text(safe(inv.quotationNumber), rightX, ry, { align: "right" });
+  }
+  if (settings.company.salesPerson) {
+    ry += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text("SALES BY", rightX, ry - 5, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXT);
+    doc.text(safe(settings.company.salesPerson), rightX, ry, { align: "right" });
   }
 
-  // Quote number + date (right side of strip)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(160, 165, 190);
-  doc.text(inv ? "BILL NO" : "QUOTE NO", pageW - margin - 55, headerH + 5.5);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...WHITE);
-  doc.text(safe(quote.number), pageW - margin - 55, headerH + 11);
+  doc.setFontSize(12.5);
+  doc.setTextColor(...TEXT);
+  doc.text(safe(quote.clientSnapshot.name), margin, y + 6);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(160, 165, 190);
-  doc.text("DATE", pageW - margin - 20, headerH + 5.5);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(...WHITE);
-  doc.text(safe(formatDate(quote.date)), pageW - margin - 20, headerH + 11);
+  doc.setTextColor(...GRAY);
+  let cy = y + 11.5;
+  for (const line of clientLines) {
+    doc.text(line, margin, cy);
+    cy += 4.4;
+  }
 
-  if (settings.company.salesPerson) {
+  y = Math.max(cy, ry + 4) + 4;
+  doc.setDrawColor(...LINE);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  // Section heading: small red accent bar + bold title + hairline divider.
+  const sectionHeading = (title: string) => {
+    doc.setFillColor(...RED);
+    doc.rect(margin, y - 3.4, 1.2, 4.4, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(160, 165, 190);
-    doc.text("SALES BY", pageW - margin - 55, headerH + 17);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...WHITE);
-    doc.text(safe(settings.company.salesPerson), pageW - margin - 20, headerH + 17, {
-      align: "right",
-    });
-  }
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT);
+    doc.text(title, margin + 3.6, y);
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y + 2.6, margin + contentW, y + 2.6);
+    y += 8.5;
+  };
 
-  // ── DOCUMENT TITLE — letterspaced, flanked by fine red rules ───────────────
-  const titleY = headerH + stripH + 8;
-  const titleText = inv ? "TAX INVOICE" : settings.docTitle.toUpperCase();
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(...DARK);
-  doc.text(safe(titleText), pageW / 2, titleY, { align: "center", charSpace: 1.4 });
-  const titleW = doc.getStringUnitWidth(titleText) * 14 * 0.352778 + (titleText.length - 1) * 1.4;
-  doc.setDrawColor(...RED);
-  doc.setLineWidth(0.6);
-  doc.line(pageW / 2 - titleW / 2 - 18, titleY - 1.7, pageW / 2 - titleW / 2 - 5, titleY - 1.7);
-  doc.line(pageW / 2 + titleW / 2 + 5, titleY - 1.7, pageW / 2 + titleW / 2 + 18, titleY - 1.7);
+  sectionHeading("ITEM DESCRIPTION");
+  const tableStartY = y;
 
-  // Linked quotation reference under the title (bills only)
-  let tableStartY = titleY + 5;
-  if (inv?.quotationNumber) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(120, 120, 140);
-    doc.text(`Ref. Quotation: ${safe(inv.quotationNumber)}`, pageW / 2, titleY + 6, {
-      align: "center",
-    });
-    tableStartY = titleY + 9;
-  }
-
-  // ── ITEMS TABLE ────────────────────────────────────────────────────────────
+  // ── ITEMS TABLE — plain grid, no dark fills ────────────────────────────────
   const rowImgH = 24;
   const SPEC_LINE_H = 3.6;
-  // Pre-wrap spec lines at the description column's full width (63mm - padding).
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   const body = quote.items.map((it, idx) => {
@@ -308,7 +250,7 @@ export async function generateQuotationPdf(
     if (it.steps) lines.push(`Steps: ${it.steps}`);
     if (it.weight) lines.push(`Weight: ${pdfNum(it.weight, 2)} Kg`);
 
-    const specTexts = it.specs.filter((s) => s.trim()).map((s) => `* ${safe(s)}`);
+    const specTexts = it.specs.filter((s) => s.trim()).map((s) => `- ${safe(s)}`);
     const hasImg = !!(it.imageUrl && images[it.imageUrl]);
     let specLines: string[] = [];
     if (hasImg) {
@@ -336,32 +278,34 @@ export async function generateQuotationPdf(
     body: body as never,
     // Never slice an item row in half — move the whole row to the next page.
     rowPageBreak: "avoid",
-    // Keep table rows clear of the 10mm footer bar.
-    margin: { left: margin, right: margin, bottom: 8 },
+    // Keep table rows clear of the footer.
+    margin: { left: margin, right: margin, bottom: 20 },
     styles: {
       font: "helvetica",
       fontSize: 8.5,
       cellPadding: 3,
-      lineColor: [235, 235, 241] as [number, number, number],
+      lineColor: LINE,
       lineWidth: 0.15,
       textColor: TEXT,
       valign: "middle",
     },
     headStyles: {
-      fillColor: DARK,
-      textColor: WHITE,
+      fillColor: WHITE,
+      textColor: TEXT,
       fontStyle: "bold",
       halign: "center",
       fontSize: 8,
-      cellPadding: { top: 3.5, bottom: 3.5, left: 1, right: 1 },
+      lineColor: TEXT,
+      lineWidth: { bottom: 0.5, top: 0, left: 0.15, right: 0.15 } as never,
+      cellPadding: { top: 3, bottom: 3, left: 1, right: 1 },
     },
     alternateRowStyles: {
-      fillColor: [250, 250, 252] as [number, number, number],
+      fillColor: PANEL,
     },
-    // Widths must sum to contentW (190mm) and leave every header on a single line.
+    // Widths must sum to contentW and leave every header on a single line.
     columnStyles: {
       0: { cellWidth: 8, halign: "center" },
-      1: { cellWidth: 63 },
+      1: { cellWidth: contentW - 8 - 16 - 15 - 12 - 20 - 23 - 33 },
       2: { cellWidth: 16, halign: "center" },
       3: { cellWidth: 15, halign: "center" },
       4: { cellWidth: 12, halign: "center" },
@@ -422,11 +366,11 @@ export async function generateQuotationPdf(
     },
   });
 
-  // ── TOTALS ROW (TOTAL bar) ────────────────────────────────────────────────
+  // ── TOTAL ROW ──────────────────────────────────────────────────────────────
   interface JsPdfWithAt extends jsPDF {
     lastAutoTable?: { finalY: number };
   }
-  let y = (doc as JsPdfWithAt).lastAutoTable?.finalY ?? titleY + 20;
+  y = (doc as JsPdfWithAt).lastAutoTable?.finalY ?? tableStartY + 20;
   y += 2;
 
   autoTable(doc, {
@@ -443,21 +387,21 @@ export async function generateQuotationPdf(
         pdfNum(quote.subTotal, 2),
       ],
     ],
-    margin: { left: margin, right: margin, bottom: 8 },
+    margin: { left: margin, right: margin, bottom: 20 },
     styles: {
       font: "helvetica",
       fontSize: 9,
       cellPadding: 2.5,
       fontStyle: "bold",
-      fillColor: [238, 238, 244],
+      fillColor: PANEL,
       textColor: TEXT,
-      lineColor: [235, 235, 241] as [number, number, number],
+      lineColor: LINE,
       lineWidth: 0.15,
     },
     // Keep in sync with the items-table columnStyles above so columns align.
     columnStyles: {
       0: { cellWidth: 8 },
-      1: { cellWidth: 63 },
+      1: { cellWidth: contentW - 8 - 16 - 15 - 12 - 20 - 23 - 33 },
       2: { cellWidth: 16 },
       3: { cellWidth: 15 },
       4: { cellWidth: 12, halign: "center" },
@@ -467,32 +411,32 @@ export async function generateQuotationPdf(
     },
   });
   y = (doc as JsPdfWithAt).lastAutoTable?.finalY ?? y + 8;
-  y += 5;
+  y += 9;
 
   // Break to a new page only when a block genuinely doesn't fit above the
-  // footer bar (which starts at pageH - 10) — otherwise keep filling the page.
+  // footer — otherwise keep filling the page.
+  const FOOTER_H = 18;
   const ensureSpace = (need: number) => {
-    if (y + need > pageH - 8) {
+    if (y + need > pageH - FOOTER_H) {
       doc.addPage();
       y = margin + 5;
     }
   };
 
-  // ── BOTTOM SECTION: Summary left | Totals right ───────────────────────────
-  // Bills add two payment rows (16mm) — the box is never split across pages.
-  ensureSpace(inv ? 54 : 38);
+  // ── PROJECT COSTING ────────────────────────────────────────────────────────
+  ensureSpace(inv ? 58 : 42);
+  sectionHeading("PROJECT COSTING");
   const boxTop = y;
-  const leftW = contentW * 0.52;
-  const rightW2 = contentW * 0.48;
-  const rightX2 = margin + leftW;
-  const rowH = 7;
+  const leftW = contentW * 0.5;
+  const rightW2 = contentW * 0.46;
+  const rightX2 = margin + contentW - rightW2;
+  const rowH = 6.6;
 
   // LEFT — summary stats (+ bank details on bills)
-  doc.setFont("helvetica", "bold");
+  let ly = boxTop + 1;
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...TEXT);
-  let ly = boxTop + 1;
-
   const summaryLines = [
     `Total Items   : ${quote.totals.itemCount}`,
     `Total Area    : ${pdfNum(quote.totals.area, 2)} sqft`,
@@ -515,7 +459,7 @@ export async function generateQuotationPdf(
       .filter(Boolean)
       .map((l) => safe(l as string));
     if (bankLines.length > 0) {
-      ly += 4;
+      ly += 3.5;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.setTextColor(...RED);
@@ -531,197 +475,161 @@ export async function generateQuotationPdf(
     }
   }
 
-  // RIGHT — totals breakdown
+  // RIGHT — totals breakdown, plain rows separated by hairlines
   let ty = boxTop;
-  const totalsData: [string, string, boolean][] = [
-    ["Sub Total", pdfINR(quote.subTotal), false],
+  const totalsData: [string, string][] = [
+    ["Sub Total", pdfINR(quote.subTotal)],
     [
       `Discount${quote.discount.mode === "percent" ? ` (${quote.discount.value}%)` : ""}`,
       `- ${pdfINR(quote.discountAmt)}`,
-      false,
     ],
-    [`GST @ ${quote.gstPercent}%`, pdfINR(quote.gstAmt), false],
+    [`GST @ ${quote.gstPercent}%`, pdfINR(quote.gstAmt)],
   ];
 
-  doc.setLineWidth(0.15);
-  doc.setDrawColor(235, 235, 241);
-
+  doc.setDrawColor(...LINE);
+  doc.setLineWidth(0.25);
   for (const [label, value] of totalsData) {
-    doc.setFillColor(...LIGHT_GRAY);
-    doc.rect(rightX2, ty, rightW2, rowH, "FD");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...TEXT);
-    doc.text(safe(label), rightX2 + 3, ty + 4.8);
-    doc.text(safe(value), rightX2 + rightW2 - 3, ty + 4.8, { align: "right" });
+    doc.text(safe(label), rightX2, ty + 4.6);
+    doc.text(safe(value), rightX2 + rightW2, ty + 4.6, { align: "right" });
+    doc.line(rightX2, ty + rowH, rightX2 + rightW2, ty + rowH);
     ty += rowH;
   }
 
-  // Grand Total row — bold red background
-  const gtH = rowH + 2;
-  doc.setFillColor(...RED);
-  doc.rect(rightX2, ty, rightW2, gtH, "F");
+  // Grand Total — bold, flanked by a heavier red rule
+  ty += 1;
+  doc.setDrawColor(...RED);
+  doc.setLineWidth(0.6);
+  doc.line(rightX2, ty, rightX2 + rightW2, ty);
+  ty += 5.2;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(...WHITE);
-  doc.text("GRAND TOTAL", rightX2 + 3, ty + 5.5);
-  doc.text(pdfINR(quote.grandTotal), rightX2 + rightW2 - 3, ty + 5.5, { align: "right" });
-  ty += gtH;
+  doc.setFontSize(11);
+  doc.setTextColor(...RED);
+  doc.text("GRAND TOTAL", rightX2, ty);
+  doc.text(pdfINR(quote.grandTotal), rightX2 + rightW2, ty, { align: "right" });
+  ty += 2.4;
+  doc.setDrawColor(...RED);
+  doc.setLineWidth(0.6);
+  doc.line(rightX2, ty, rightX2 + rightW2, ty);
+  ty += 5.5;
 
   // Bills: amount received + balance due
   if (inv) {
-    doc.setFillColor(...LIGHT_GRAY);
-    doc.rect(rightX2, ty, rightW2, rowH, "FD");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(16, 122, 87);
-    doc.text("Received", rightX2 + 3, ty + 4.8);
-    doc.text(`- ${pdfINR(inv.amountPaid)}`, rightX2 + rightW2 - 3, ty + 4.8, { align: "right" });
-    ty += rowH;
+    doc.text("Received", rightX2, ty + 4.6);
+    doc.text(`- ${pdfINR(inv.amountPaid)}`, rightX2 + rightW2, ty + 4.6, { align: "right" });
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.25);
+    doc.line(rightX2, ty + rowH, rightX2 + rightW2, ty + rowH);
+    ty += rowH + 2;
 
-    doc.setFillColor(...DARK);
-    doc.rect(rightX2, ty, rightW2, gtH, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10.5);
-    doc.setTextColor(...WHITE);
-    doc.text("BALANCE DUE", rightX2 + 3, ty + 5.5);
-    doc.text(pdfINR(inv.balanceDue), rightX2 + rightW2 - 3, ty + 5.5, { align: "right" });
-    ty += gtH;
+    doc.setFontSize(11);
+    doc.setTextColor(...TEXT);
+    doc.text("BALANCE DUE", rightX2, ty + 4.6);
+    doc.text(pdfINR(inv.balanceDue), rightX2 + rightW2, ty + 4.6, { align: "right" });
+    doc.setDrawColor(...TEXT);
+    doc.setLineWidth(0.4);
+    doc.line(rightX2, ty + rowH + 1, rightX2 + rightW2, ty + rowH + 1);
+    ty += rowH + 3;
   }
 
   // Avg price row
-  doc.setFillColor(220, 220, 230);
-  doc.rect(rightX2, ty, rightW2, rowH, "FD");
-  const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.setTextColor(...TEXT);
-  doc.text("Avg Price / sqft", rightX2 + 3, ty + 4.8);
-  doc.text(pdfINR(avg), rightX2 + rightW2 - 3, ty + 4.8, { align: "right" });
+  doc.setTextColor(...GRAY);
+  const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
+  doc.text("Avg Price / sqft", rightX2, ty + 4);
+  doc.text(pdfINR(avg), rightX2 + rightW2, ty + 4, { align: "right" });
   ty += rowH;
 
-  y = Math.max(ly, ty) + 8;
+  y = Math.max(ly, ty) + 6;
+  void leftW; // reserved for future left-column width tuning
 
-  // Section heading: small red accent bar + title + hairline divider.
-  const sectionHeading = (title: string) => {
-    doc.setFillColor(...RED);
-    doc.rect(margin, y - 3.2, 1.3, 4.4, "F");
+  // ── LOADING NOTICE (quotations only) ───────────────────────────────────────
+  if (!inv && settings.loadingNotice.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    const label = "Note: ";
+    const labelW = doc.getStringUnitWidth(label) * 8.5 * 0.352778;
+    const noticeLines = doc.splitTextToSize(
+      safe(settings.loadingNotice),
+      contentW - labelW,
+    ) as string[];
+    ensureSpace(noticeLines.length * 4.3 + 4);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(...DARK);
-    doc.text(title, margin + 3.8, y);
-    doc.setDrawColor(232, 232, 238);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y + 2.4, margin + contentW, y + 2.4);
-    y += 8;
-  };
+    doc.setTextColor(...RED);
+    doc.text(label, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...TEXT);
+    doc.text(noticeLines, margin + labelW, y);
+    y += noticeLines.length * 4.3 + 7;
+  }
+
+  // ── PAYMENT CONDITION — quotations only; a bill shows actual payments instead ──
+  if (!inv && settings.paymentTerms.trim()) {
+    const ptRows = safe(settings.paymentTerms)
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    ensureSpace(8 + ptRows.length * 5);
+    sectionHeading("PAYMENT CONDITION");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXT);
+    for (const row of ptRows) {
+      const wrapped = doc.splitTextToSize(row, contentW - 5) as string[];
+      ensureSpace(wrapped.length * 4.4 + 2);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 4.4 + 1.6;
+    }
+    y += 4;
+  }
 
   // ── PAYMENT HISTORY (bills only) ──────────────────────────────────────────
   if (inv && inv.payments.length > 0) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.4);
+    doc.setFontSize(8.6);
     const payRows = inv.payments.map((p) => {
-      const left = safe(`${formatDate(p.date)}  |  ${p.mode}${p.note ? ` — ${p.note}` : ""}`);
+      const left = safe(`${formatDate(p.date)}   |   ${p.mode}${p.note ? ` -- ${p.note}` : ""}`);
       return {
         lines: doc.splitTextToSize(left, contentW - 50) as string[],
         amount: pdfINR(p.amount),
       };
     });
-    const rowHs = payRows.map((r) => r.lines.length * 4.2 + 2.8);
-    const panelH = rowHs.reduce((a, b) => a + b, 0) + 3.5;
-    ensureSpace(8 + Math.min(panelH, pageH - margin - 24) + 4);
+    const rowHs = payRows.map((r) => r.lines.length * 4.4 + 1.6);
+    ensureSpace(8 + rowHs.reduce((a, b) => a + b, 0) + 4);
     sectionHeading("PAYMENT HISTORY");
-    doc.setFillColor(...LIGHT_GRAY);
-    doc.roundedRect(margin, y, contentW, panelH, 1.6, 1.6, "F");
-    let py = y + 6;
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.25);
     for (let i = 0; i < payRows.length; i++) {
-      doc.setFillColor(...RED);
-      doc.circle(margin + 4.5, py - 1.1, 0.8, "F");
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.4);
+      doc.setFontSize(8.6);
       doc.setTextColor(...TEXT);
-      doc.text(payRows[i].lines, margin + 8.5, py);
+      doc.text(payRows[i].lines, margin, y + 3.6);
       doc.setFont("helvetica", "bold");
-      doc.text(payRows[i].amount, margin + contentW - 4.5, py, { align: "right" });
-      py += rowHs[i];
+      doc.text(payRows[i].amount, margin + contentW, y + 3.6, { align: "right" });
+      y += rowHs[i];
+      doc.line(margin, y - 0.4, margin + contentW, y - 0.4);
     }
-    y += panelH + 7;
+    y += 6;
   }
 
-  // ── LOADING NOTICE (quotations only) ──────────────────────────────────────
-  if (!inv && settings.loadingNotice.trim()) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    const noticeLines = doc.splitTextToSize(safe(settings.loadingNotice), contentW - 12);
-    const noticeH = noticeLines.length * 4.5 + 5;
-    ensureSpace(noticeH + 2);
-    doc.setFillColor(255, 243, 243);
-    doc.rect(margin, y, contentW, noticeH, "F");
-    doc.setFillColor(...RED);
-    doc.rect(margin, y, 1.3, noticeH, "F");
-    doc.setTextColor(200, 45, 50);
-    doc.text(noticeLines, margin + 5.5, y + 5.5);
-    y += noticeH + 7;
-  }
-
-  // ── PAYMENT TERMS — quotations only; a bill shows actual payments instead ──
-  if (!inv && settings.paymentTerms.trim()) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.4);
-    const ptRows = safe(settings.paymentTerms)
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((r) => doc.splitTextToSize(r, contentW - 16) as string[]);
-    const rowHs = ptRows.map((w) => w.length * 4.2 + 2.8);
-    const panelH = rowHs.reduce((a, b) => a + b, 0) + 3.5;
-
-    if (panelH <= pageH - margin - 24) {
-      // Keep heading + panel together on one page.
-      ensureSpace(8 + panelH + 4);
-      sectionHeading("PAYMENT TERMS");
-      doc.setFillColor(...LIGHT_GRAY);
-      doc.roundedRect(margin, y, contentW, panelH, 1.6, 1.6, "F");
-      let ry = y + 6;
-      for (let i = 0; i < ptRows.length; i++) {
-        doc.setFillColor(...RED);
-        doc.circle(margin + 4.5, ry - 1.1, 0.8, "F");
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8.4);
-        doc.setTextColor(...TEXT);
-        doc.text(ptRows[i], margin + 8.5, ry);
-        ry += rowHs[i];
-      }
-      y += panelH + 7;
-    } else {
-      // Extremely long terms — flow line by line, never cutting anything.
-      ensureSpace(8 + 10);
-      sectionHeading("PAYMENT TERMS");
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.4);
-      doc.setTextColor(...TEXT);
-      for (const row of ptRows) {
-        for (const line of row) {
-          ensureSpace(5);
-          doc.text(line, margin + 3, y);
-          y += 4.2;
-        }
-        y += 1;
-      }
-      y += 6;
-    }
-  }
-
-  // ── TERMS & CONDITIONS — quotations only (quote-specific validity terms) ───
+  // ── TERMS & CONDITIONS — quotations only ───────────────────────────────────
   const terms = inv ? [] : settings.termsAndConditions.filter((t) => t.trim());
   if (terms.length > 0) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.2);
-    const colGap = 8;
-    const panelPad = 4.5; // inner padding of the grey panel, like Payment Terms
-    const colW = (contentW - panelPad * 2 - colGap) / 2;
-    const wrapped = terms.map((t) => doc.splitTextToSize(safe(t), colW - 7) as string[]);
-    const itemHs = wrapped.map((w) => w.length * 4 + 2.6);
+    doc.setFontSize(8.3);
+    const colGap = 10;
+    const colW = (contentW - colGap) / 2;
+    const wrapped = terms.map(
+      (t, i) => doc.splitTextToSize(`${i + 1}. ${safe(t)}`, colW - 2) as string[],
+    );
+    const itemHs = wrapped.map((w) => w.length * 4 + 2);
     const totalH = itemHs.reduce((a, b) => a + b, 0);
 
     // Split items into two columns as evenly as possible (keeping order).
@@ -739,35 +647,28 @@ export async function generateQuotationPdf(
     const colsH = Math.max(leftH, rightH);
 
     const drawTerm = (idx: number, x: number, ty2: number): number => {
-      doc.setFillColor(...RED);
-      doc.circle(x + 1, ty2 - 1.1, 0.8, "F");
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.2);
+      doc.setFontSize(8.3);
       doc.setTextColor(...TEXT);
-      doc.text(wrapped[idx], x + 4.5, ty2);
+      doc.text(wrapped[idx], x, ty2);
       return itemHs[idx];
     };
 
-    if (colsH <= pageH - margin - 24) {
-      // Two-column layout inside a soft grey panel, kept together with its heading.
-      const panelH = colsH + 7.5;
-      ensureSpace(8 + panelH + 4);
+    if (colsH <= pageH - margin - FOOTER_H - 24) {
+      ensureSpace(8 + colsH + 4);
       sectionHeading("TERMS & CONDITIONS");
-      doc.setFillColor(...LIGHT_GRAY);
-      doc.roundedRect(margin, y, contentW, panelH, 1.6, 1.6, "F");
-      let cy2 = y + 6;
-      for (let i = 0; i < splitIdx; i++) cy2 += drawTerm(i, margin + panelPad, cy2);
-      cy2 = y + 6;
-      for (let i = splitIdx; i < terms.length; i++)
-        cy2 += drawTerm(i, margin + panelPad + colW + colGap, cy2);
-      y += panelH + 7;
+      let cy2 = y + 2;
+      for (let i = 0; i < splitIdx; i++) cy2 += drawTerm(i, margin, cy2);
+      cy2 = y + 2;
+      for (let i = splitIdx; i < terms.length; i++) cy2 += drawTerm(i, margin + colW + colGap, cy2);
+      y += colsH + 8;
     } else {
       // Very long list — single column, item by item, nothing ever cut.
       ensureSpace(8 + itemHs[0] + 2);
       sectionHeading("TERMS & CONDITIONS");
       let cy2 = y + 2;
       for (let i = 0; i < terms.length; i++) {
-        if (cy2 + itemHs[i] > pageH - 8) {
+        if (cy2 + itemHs[i] > pageH - FOOTER_H) {
           doc.addPage();
           cy2 = margin + 7;
         }
@@ -786,26 +687,25 @@ export async function generateQuotationPdf(
       : "I hereby accept the estimate as per above mentioned price and specifications.",
     contentW,
   ) as string[];
-  // Exact block height: acceptance + gap + "For company" + line + label + thank-you.
   ensureSpace(accept.length * 4.5 + 26 + 10);
-  doc.setTextColor(110, 110, 130);
+  doc.setTextColor(...GRAY);
   doc.text(accept, margin, y);
   y += accept.length * 4.5 + 14;
 
   const sigW = 62;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(...DARK);
+  doc.setTextColor(...TEXT);
   doc.text(`For ${safe(settings.company.name)}`, pageW - margin, y - 2, { align: "right" });
 
   y += 8;
-  doc.setDrawColor(...DARK_MID);
+  doc.setDrawColor(...LINE);
   doc.setLineWidth(0.4);
   doc.line(margin, y, margin + sigW, y);
   doc.line(pageW - margin - sigW, y, pageW - margin, y);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(120, 120, 140);
+  doc.setTextColor(...GRAY);
   doc.text("Customer Signature & Date", margin, y + 4.2);
   doc.text("Authorized Signatory", pageW - margin, y + 4.2, { align: "right" });
   y += 12;
@@ -819,22 +719,31 @@ export async function generateQuotationPdf(
   });
 
   // ── WATERMARK + PAGE FOOTER ────────────────────────────────────────────────
-  // Logo watermark, centered on every page: the white-on-dark logo is re-tinted
-  // to a dark silhouette, then stamped at very low opacity.
-  const wm = logoData ? await tintLogo(logoData, "#2a2a38") : null;
+  // The logo is already dark/coloured, so it can be stamped directly at very
+  // low opacity as a centered watermark — no re-tinting needed on white paper.
+  const footContact = [
+    settings.company.address,
+    settings.company.phones && `Ph: ${settings.company.phones}`,
+    settings.company.email && `Email: ${settings.company.email}`,
+    settings.company.website,
+    settings.company.gst && `GSTIN: ${settings.company.gst}`,
+  ]
+    .filter(Boolean)
+    .map((l) => safe(l as string).replace(/\n/g, " "))
+    .join("   |   ");
 
   const total = doc.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
 
-    if (wm) {
+    if (logoData) {
       try {
-        const wmW = 120;
-        const wmH = (wm.h / wm.w) * wmW;
+        const wmW = 110;
+        const wmH = (110 * 457) / 1152;
         doc.saveGraphicsState();
-        doc.setGState(new GState({ opacity: 0.055 }));
+        doc.setGState(new GState({ opacity: 0.045 }));
         doc.addImage(
-          wm.url,
+          logoData,
           "PNG",
           (pageW - wmW) / 2,
           (pageH - wmH) / 2,
@@ -849,20 +758,25 @@ export async function generateQuotationPdf(
       }
     }
 
-    // Footer bar (slim)
-    doc.setFillColor(...DARK);
-    doc.rect(0, pageH - 6, pageW, 6, "F");
+    // Footer: thin hairline, contact strip, then quote no / tagline / page no.
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageH - 15, pageW - margin, pageH - 15);
 
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.6);
+    doc.setTextColor(...GRAY);
+    const contactLines = (doc.splitTextToSize(footContact, contentW) as string[]).slice(0, 1);
+    doc.text(contactLines, pageW / 2, pageH - 11, { align: "center" });
+
     doc.setFontSize(7);
-    doc.setTextColor(180, 185, 210);
-    // Baseline chosen so 7pt text sits optically centered in the 6mm bar.
-    const footY = pageH - 1.8;
-    doc.text(safe(quote.number), margin, footY);
+    doc.text(safe(quote.number), margin, pageH - 5.5);
     doc.setFont("helvetica", "italic");
-    doc.text(safe(BRAND_TAGLINE), pageW / 2, footY, { align: "center" });
+    doc.setTextColor(...RED);
+    doc.text(safe(BRAND_TAGLINE), pageW / 2, pageH - 5.5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(`Page ${i} of ${total}`, pageW - margin, footY, { align: "right" });
+    doc.setTextColor(...GRAY);
+    doc.text(`Page ${i} of ${total}`, pageW - margin, pageH - 5.5, { align: "right" });
   }
 
   return doc.output("blob");

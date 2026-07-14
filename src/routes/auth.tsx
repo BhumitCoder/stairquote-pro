@@ -76,11 +76,9 @@ function AuthPage() {
 
         {/* Content */}
         <div className="relative z-10 flex flex-col items-center px-12 text-center">
-          <img
-            src="/logo.png"
-            alt="Vastu Stair Designer"
-            className="mb-10 w-64 object-contain drop-shadow-2xl"
-          />
+          <div className="mb-10 rounded-2xl bg-white px-6 py-4 shadow-2xl">
+            <img src="/logo.png" alt="Vastu Stair Designer" className="w-56 object-contain" />
+          </div>
 
           <div
             className="mb-3 h-px w-24 rounded-full"
@@ -128,8 +126,8 @@ function AuthPage() {
         style={{ background: "#111119" }}
       >
         {/* Mobile logo */}
-        <div className="mb-8 lg:hidden">
-          <img src="/logo.png" alt="Vastu Stair Designer" className="h-12 w-auto object-contain" />
+        <div className="mb-8 rounded-xl bg-white px-4 py-2.5 shadow-lg lg:hidden">
+          <img src="/logo.png" alt="Vastu Stair Designer" className="h-10 w-auto object-contain" />
         </div>
 
         <div className="w-full max-w-sm">

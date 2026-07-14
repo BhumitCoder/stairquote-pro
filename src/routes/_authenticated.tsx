@@ -109,11 +109,13 @@ function SidebarContent({
       >
         {!collapsed && (
           <div className="min-w-0">
-            <img
-              src="/logo.png"
-              alt="Vastu Stairs Designer"
-              className="h-9 w-auto object-contain"
-            />
+            <div className="inline-block rounded-md bg-white px-2 py-1">
+              <img
+                src="/logo.png"
+                alt="Vastu Stairs Designer"
+                className="h-7 w-auto object-contain"
+              />
+            </div>
             <div
               className="mt-1 truncate text-[9px] italic tracking-wide"
               style={{ color: "var(--color-sidebar-foreground)", opacity: 0.4 }}

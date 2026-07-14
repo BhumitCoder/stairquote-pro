@@ -372,21 +372,6 @@ export function QuotationPreview({
         </div>
       </div>
 
-      {/* Loading notice — quotations only, soft callout card */}
-      {!inv && settings.loadingNotice && (
-        <div className="relative z-10 px-5 pt-6 sm:px-7">
-          <div
-            className="rounded-md border-l-[3px] px-4 py-3 text-[12px]"
-            style={{ background: "#FFF6F6", borderColor: RED, color: TEXT }}
-          >
-            <span className="font-bold" style={{ color: RED }}>
-              Note:{" "}
-            </span>
-            {settings.loadingNotice}
-          </div>
-        </div>
-      )}
-
       {/* Payment condition — quotations only; a bill shows actual payments instead */}
       {!inv && settings.paymentTerms && (
         <div className="relative z-10 px-5 pt-6 sm:px-7">

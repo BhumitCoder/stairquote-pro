@@ -550,32 +550,6 @@ export async function generateQuotationPdf(
   y = Math.max(ly, ty) + 6;
   void leftW; // reserved for future left-column width tuning
 
-  // ── LOADING NOTICE (quotations only) — soft callout card ──────────────────
-  if (!inv && settings.loadingNotice.trim()) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    const label = "Note: ";
-    const labelW = doc.getStringUnitWidth(label) * 8.5 * 0.352778;
-    doc.setFont("helvetica", "normal");
-    const noticeLines = doc.splitTextToSize(
-      safe(settings.loadingNotice),
-      contentW - labelW - 9,
-    ) as string[];
-    const noticeH = noticeLines.length * 4.3 + 5.5;
-    ensureSpace(noticeH + 5);
-    doc.setFillColor(255, 246, 246);
-    doc.roundedRect(margin, y - 4.5, contentW, noticeH, 1.6, 1.6, "F");
-    doc.setFillColor(...RED);
-    doc.rect(margin, y - 4.5, 1.2, noticeH, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...RED);
-    doc.text(label, margin + 4.5, y);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...TEXT);
-    doc.text(noticeLines, margin + 4.5 + labelW, y);
-    y += noticeH + 6;
-  }
-
   // ── PAYMENT CONDITION — quotations only; a bill shows actual payments instead ──
   if (!inv && settings.paymentTerms.trim()) {
     doc.setFont("helvetica", "normal");

@@ -12,7 +12,7 @@ import {
 } from "@/lib/firestore";
 import { uploadFile, deleteFile } from "@/lib/storage";
 import { blankItem, nextItemCode, recomputeQuotation } from "@/lib/calc";
-import { generateQuotationPdf, downloadBlob } from "@/lib/pdf";
+import { renderPreviewToPdf, downloadBlob } from "@/lib/pdf-capture";
 import type { Client, Quotation, QuoteItem, QuoteStatus, RateMode, MeasureUnit } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -161,7 +161,7 @@ export function QuotationEditor({
       } else {
         await saveMut.mutateAsync();
       }
-      const blob = await generateQuotationPdf(q, settings);
+      const blob = await renderPreviewToPdf(<QuotationPreview quote={q} settings={settings} />);
       downloadBlob(blob, `${q.number}.pdf`);
     } catch (e) {
       toast.error((e as Error).message);

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { generateQuotationPdf } from "@/lib/pdf";
+import { renderPreviewToPdf } from "@/lib/pdf-capture";
 import { QuotationPreview } from "@/components/QuotationPreview";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import type { Quotation } from "@/lib/types";
@@ -59,7 +59,12 @@ function DebugPdf() {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    generateQuotationPdf(mockQuote, { ...DEFAULT_SETTINGS, docTitle: "Quotation" })
+    renderPreviewToPdf(
+      <QuotationPreview
+        quote={mockQuote}
+        settings={{ ...DEFAULT_SETTINGS, docTitle: "Quotation" }}
+      />,
+    )
       .then((blob) => {
         setUrl(URL.createObjectURL(blob));
       })

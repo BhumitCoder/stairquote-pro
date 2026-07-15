@@ -1,16 +1,16 @@
 import type { AppSettings, Invoice, Quotation } from "@/lib/types";
 import { formatINR, formatNum, formatDate } from "@/lib/format";
-import { BRAND_TAGLINE } from "@/lib/settings-defaults";
 
-// On-screen replica of the generated PDF (see lib/pdf.ts) — instant, crisp and
-// mobile-friendly, unlike embedding the PDF blob in an iframe.
-// Renders both quotations and bills (tax invoices) — pass either document.
-// A clean, minimal letterhead: plenty of whitespace, thin hairline rules and
-// a single red accent — built to read as simple and trustworthy to a client.
+// Luxury editorial document — designed for an audience of architects and
+// designers. Serif display type (Playfair), generous whitespace, hairline
+// rules, item "showcase" cards instead of a dense grid, and a hero total.
+// The PDF is a pixel-exact capture of this component (see lib/pdf-capture).
 const RED = "#E8484D";
-const TEXT = "#23232D";
-const GRAY = "#7D8091";
-const LINE = "#DEDEE6";
+const INK = "#1B1B23";
+const BODY = "#4A4A55";
+const GRAY = "#8A8DA0";
+const HAIR = "#EAEAF0";
+const SERIF = '"Playfair Display", Georgia, "Times New Roman", serif';
 
 export function QuotationPreview({
   quote,
@@ -34,467 +34,423 @@ export function QuotationPreview({
   ].filter(Boolean) as [string, string][];
 
   return (
-    <div className="relative overflow-hidden bg-white text-[13px] leading-snug text-zinc-800 shadow-sm">
-      {/* Centered logo watermark, very low opacity — the logo is already dark/coloured */}
+    <div
+      className="relative overflow-hidden bg-white text-[13px] leading-snug"
+      style={{ color: BODY }}
+    >
+      {/* Centered logo watermark, very low opacity */}
       <img
         src="/logo.png"
         alt=""
         aria-hidden
+        data-watermark
         className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[50%] max-w-[420px] -translate-x-1/2 -translate-y-1/2 select-none"
         style={{ opacity: 0.05 }}
       />
 
-      {/* Header — plain white letterhead: title left, logo right */}
-      <div className="relative flex items-start justify-between gap-4 px-5 pt-6 sm:px-7">
-        <div>
-          <div className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: TEXT }}>
+      {/* ── Brand band — light, matching the dark-on-transparent logo ── */}
+      <div className="relative z-10 flex items-center justify-between gap-6 px-8 pb-6 pt-8 sm:px-10">
+        <img src="/logo.png" alt="" className="h-14 w-auto shrink-0 object-contain sm:h-16" />
+        <div className="text-right">
+          <div
+            className="text-[10px] font-semibold uppercase tracking-[0.35em]"
+            style={{ color: GRAY }}
+          >
             {inv ? "Tax Invoice" : settings.docTitle}
           </div>
-          <span style={{ background: RED }} className="mt-2 block h-1 w-10 rounded-full" />
-        </div>
-        <img src="/logo.png" alt="" className="h-14 w-auto shrink-0 object-contain sm:h-16" />
-      </div>
-      <div style={{ background: LINE }} className="relative z-10 mx-5 mt-5 h-px sm:mx-7" />
-
-      {/* Client + meta row */}
-      <div className="relative z-10 flex flex-col gap-4 px-5 pt-5 sm:flex-row sm:items-start sm:justify-between sm:px-7">
-        <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: GRAY }}>
-            TO,
+          <div style={{ fontFamily: SERIF, color: INK }} className="mt-1.5 text-[22px]">
+            {quote.number}
           </div>
-          <div className="mt-1 text-base font-bold" style={{ color: TEXT }}>
+          <div className="mt-1 text-[11px] tracking-wide" style={{ color: GRAY }}>
+            {formatDate(quote.date)}
+            {inv?.quotationNumber ? ` · Ref. ${inv.quotationNumber}` : ""}
+          </div>
+        </div>
+      </div>
+      <div className="relative z-10 mx-8 h-px sm:mx-10" style={{ background: HAIR }} />
+      <div style={{ background: RED }} className="relative z-10 ml-8 h-[3px] w-24 sm:ml-10" />
+
+      {/* ── Prepared for ── */}
+      <div
+        data-block
+        className="relative z-10 flex flex-col gap-6 px-8 pt-9 sm:flex-row sm:items-start sm:justify-between sm:px-10"
+      >
+        <div className="min-w-0">
+          <SectionLabel>Prepared For</SectionLabel>
+          <div
+            style={{ fontFamily: SERIF, color: INK }}
+            className="mt-2.5 text-[24px] font-semibold leading-tight"
+          >
             {c.name}
           </div>
-          <div className="mt-1 space-y-0.5 text-[12px]" style={{ color: GRAY }}>
+          <div className="mt-2 space-y-0.5 text-[12px]" style={{ color: GRAY }}>
             {c.org && <div>{c.org}</div>}
             {c.phone && <div>Mobile: {c.phone}</div>}
             {c.email && <div>{c.email}</div>}
             {clientAddress && <div>{clientAddress}</div>}
           </div>
         </div>
-        <div className="flex shrink-0 gap-6 text-left sm:text-right">
-          <div>
-            <div
-              className="text-[10px] font-bold uppercase tracking-widest"
-              style={{ color: GRAY }}
-            >
-              {inv ? "Bill No" : "Quote No"}
+        {settings.company.salesPerson && (
+          <div className="shrink-0 sm:text-right">
+            <SectionLabel>Your Consultant</SectionLabel>
+            <div className="mt-2.5 text-[13px] font-medium" style={{ color: INK }}>
+              {settings.company.salesPerson}
             </div>
-            <div className="mt-1 text-sm" style={{ color: TEXT }}>
-              {quote.number}
-            </div>
-            {inv?.quotationNumber && (
-              <>
-                <div
-                  className="mt-2 text-[10px] font-bold uppercase tracking-widest"
-                  style={{ color: GRAY }}
-                >
-                  Ref. Quotation
-                </div>
-                <div className="mt-1 text-[12px]" style={{ color: TEXT }}>
-                  {inv.quotationNumber}
-                </div>
-              </>
-            )}
           </div>
-          <div>
-            <div
-              className="text-[10px] font-bold uppercase tracking-widest"
-              style={{ color: GRAY }}
-            >
-              Date
-            </div>
-            <div className="mt-1 text-sm" style={{ color: TEXT }}>
-              {formatDate(quote.date)}
-            </div>
-            {settings.company.salesPerson && (
-              <>
-                <div
-                  className="mt-2 text-[10px] font-bold uppercase tracking-widest"
-                  style={{ color: GRAY }}
-                >
-                  Sales By
-                </div>
-                <div className="mt-1 text-[12px]" style={{ color: TEXT }}>
-                  {settings.company.salesPerson}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
-      <div style={{ background: LINE }} className="relative z-10 mx-5 mt-5 h-px sm:mx-7" />
-
-      {/* Item description */}
-      <div className="relative z-10 px-5 pt-5 sm:px-7">
-        <SectionHeading>Item Description</SectionHeading>
-      </div>
-      <div className="relative z-10 overflow-x-auto px-5 pt-3 sm:px-7">
-        <table className="w-full min-w-[640px] border-collapse text-[12px]">
-          <thead>
-            <tr style={{ color: TEXT }}>
-              <th
-                className="border-b-2 px-2 py-2 text-center font-bold"
-                style={{ borderColor: TEXT }}
+      {/* ── Scope of work — item showcase ── */}
+      <div data-block className="relative z-10 px-8 pt-9 sm:px-10">
+        <SectionRule>Scope of Work</SectionRule>
+        <div>
+          {quote.items.map((it, idx) => {
+            const meta = [
+              it.location && `Location: ${it.location}`,
+              [it.material, it.finish].filter(Boolean).join(" / "),
+              it.steps ? `${it.steps} Steps` : "",
+              it.width || it.height ? `${it.width || "—"} × ${it.height || "—"}` : "",
+              it.rateMode !== "lumpsum" && it.measureValue
+                ? `${formatNum(it.measureValue * it.qty, 2)} ${it.measureUnit}`
+                : "",
+              it.weight ? `${formatNum(it.weight, 2)} Kg` : "",
+            ].filter(Boolean);
+            return (
+              <div
+                key={idx}
+                // Items after the first are their own blocks so a long list can
+                // break cleanly BETWEEN cards (never through one).
+                {...(idx > 0 ? { "data-block": true } : {})}
+                className="flex gap-5 border-b py-6"
+                style={{ borderColor: HAIR }}
               >
-                #
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-left font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Description
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-center font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Width
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-center font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Height
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-center font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Qty
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-right font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Sqft/Rft
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-right font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Rate
-              </th>
-              <th
-                className="border-b-2 px-2 py-2 text-right font-bold"
-                style={{ borderColor: TEXT }}
-              >
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {quote.items.map((it, idx) => (
-              <tr key={idx} className={idx % 2 === 1 ? "bg-zinc-50" : "bg-white"}>
-                <td
-                  className="border-b px-2 py-2 text-center align-top"
-                  style={{ borderColor: LINE }}
-                >
-                  {idx + 1}
-                </td>
-                <td className="border-b px-2 py-2 align-top" style={{ borderColor: LINE }}>
-                  <div className="space-y-1.5">
-                    <div className="flex gap-2.5">
-                      {it.imageUrl && (
-                        <img
-                          src={it.imageUrl}
-                          alt=""
-                          className="h-16 w-16 shrink-0 rounded border object-cover"
-                        />
-                      )}
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="font-semibold" style={{ color: TEXT }}>
-                          {it.name}
+                {it.imageUrl && (
+                  <img
+                    src={it.imageUrl}
+                    alt=""
+                    className="h-28 w-28 shrink-0 rounded-lg object-cover"
+                    style={{ boxShadow: "0 3px 14px rgba(20,20,30,0.12)" }}
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="min-w-0">
+                      <div
+                        style={{ fontFamily: SERIF, color: INK }}
+                        className="text-[19px] font-semibold leading-tight"
+                      >
+                        <span style={{ color: RED }}>{String(idx + 1).padStart(2, "0")}.</span>{" "}
+                        {it.name}
+                      </div>
+                      {meta.length > 0 && (
+                        <div className="mt-1.5 text-[11.5px]" style={{ color: GRAY }}>
+                          {meta.join("   ·   ")}
                         </div>
-                        {it.location && <div style={{ color: GRAY }}>Location: {it.location}</div>}
-                        {(it.material || it.finish) && (
-                          <div style={{ color: GRAY }}>
-                            {[it.material, it.finish].filter(Boolean).join(" / ")}
-                          </div>
-                        )}
-                        {!!it.steps && <div style={{ color: GRAY }}>Steps: {it.steps}</div>}
-                        {!!it.weight && (
-                          <div style={{ color: GRAY }}>Weight: {formatNum(it.weight, 2)} Kg</div>
-                        )}
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div
+                        className="text-[9px] font-semibold uppercase tracking-[0.25em]"
+                        style={{ color: GRAY }}
+                      >
+                        Amount
+                      </div>
+                      <div
+                        style={{ fontFamily: SERIF, color: INK }}
+                        className="mt-0.5 text-[18px] font-semibold"
+                      >
+                        {formatINR(it.amount)}
+                      </div>
+                      <div className="mt-0.5 text-[11px]" style={{ color: GRAY }}>
+                        Qty {it.qty} ·{" "}
+                        {it.rateMode === "lumpsum"
+                          ? "Lump Sum"
+                          : `${formatINR(it.rate)} / ${it.measureUnit}`}
                       </div>
                     </div>
-                    {it.specs.some((s) => s.trim()) && (
-                      <div className="space-y-0.5">
-                        {it.specs
-                          .filter((s) => s.trim())
-                          .map((s, i) => (
-                            <div key={i} style={{ color: GRAY }}>
-                              - {s}
-                            </div>
-                          ))}
-                      </div>
-                    )}
                   </div>
-                </td>
-                <td
-                  className="border-b px-2 py-2 text-center align-top"
-                  style={{ borderColor: LINE }}
-                >
-                  {it.width || "-"}
-                </td>
-                <td
-                  className="border-b px-2 py-2 text-center align-top"
-                  style={{ borderColor: LINE }}
-                >
-                  {it.height || "-"}
-                </td>
-                <td
-                  className="border-b px-2 py-2 text-center align-top"
-                  style={{ borderColor: LINE }}
-                >
-                  {it.qty}
-                </td>
-                <td
-                  className="border-b px-2 py-2 text-right align-top"
-                  style={{ borderColor: LINE }}
-                >
-                  {it.rateMode === "lumpsum" ? "-" : formatNum(it.measureValue * it.qty, 2)}
-                </td>
-                <td
-                  className="border-b px-2 py-2 text-right align-top"
-                  style={{ borderColor: LINE }}
-                >
-                  {it.rateMode === "lumpsum" ? "Lump Sum" : formatNum(it.rate, 2)}
-                </td>
-                <td
-                  className="border-b px-2 py-2 text-right align-top font-medium"
-                  style={{ borderColor: LINE, color: TEXT }}
-                >
-                  {formatNum(it.amount, 2)}
-                </td>
-              </tr>
-            ))}
-            <tr className="bg-zinc-50 font-bold" style={{ color: TEXT }}>
-              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
-              <td className="border-b px-2 py-2" style={{ borderColor: LINE }}>
-                TOTAL
-              </td>
-              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
-              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
-              <td className="border-b px-2 py-2 text-center" style={{ borderColor: LINE }}>
-                {quote.totals.itemCount}
-              </td>
-              <td className="border-b px-2 py-2 text-right" style={{ borderColor: LINE }}>
-                {formatNum(quote.totals.area, 2)}
-              </td>
-              <td className="border-b px-2 py-2" style={{ borderColor: LINE }} />
-              <td className="border-b px-2 py-2 text-right" style={{ borderColor: LINE }}>
-                {formatNum(quote.subTotal, 2)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  {it.specs.some((s) => s.trim()) && (
+                    <div
+                      className="mt-3 space-y-1 text-[12px] leading-relaxed"
+                      style={{ color: BODY }}
+                    >
+                      {it.specs
+                        .filter((s) => s.trim())
+                        .map((s, i) => (
+                          <div key={i} className="flex gap-2">
+                            <span
+                              style={{ background: RED }}
+                              className="mt-[7px] h-1 w-1 shrink-0 rounded-full"
+                            />
+                            <span>{s}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Project costing */}
-      <div className="relative z-10 px-5 pt-7 sm:px-7">
-        <SectionHeading>Project Costing</SectionHeading>
-      </div>
-      <div className="relative z-10 flex flex-col gap-5 px-5 pt-4 sm:flex-row sm:px-7">
-        <div className="flex-1 space-y-4">
-          <div className="space-y-1 text-[12px] font-semibold" style={{ color: TEXT }}>
-            <div>Total Items : {quote.totals.itemCount}</div>
-            <div>Total Area : {formatNum(quote.totals.area, 2)} sqft</div>
-            <div>Total Weight : {formatNum(quote.totals.weight, 2)} Kg</div>
-            <div>Avg Price / sqft : {formatINR(avg)}</div>
-          </div>
-          {inv && bankLines.length > 0 && (
-            <div>
-              <div
-                style={{ color: RED }}
-                className="text-[11px] font-bold uppercase tracking-wider"
-              >
-                Bank / Payment Details
-              </div>
-              <div className="mt-1 space-y-0.5 text-[12px]" style={{ color: TEXT }}>
-                {bankLines.map(([k, v]) => (
-                  <div key={k}>
-                    <span className="inline-block w-20" style={{ color: GRAY }}>
-                      {k}
-                    </span>
-                    : {v}
-                  </div>
-                ))}
-              </div>
+      {/* ── Investment summary ── */}
+      <div data-block className="relative z-10 px-8 pt-9 sm:px-10">
+        <SectionRule>{inv ? "Payment Summary" : "Investment Summary"}</SectionRule>
+        <div className="flex flex-col gap-8 pt-1 sm:flex-row sm:justify-between">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-x-10 gap-y-2.5 text-[12px]">
+              <Fact label="Total Items" value={String(quote.totals.itemCount)} />
+              <Fact label="Total Area" value={`${formatNum(quote.totals.area, 2)} sqft`} />
+              <Fact label="Total Weight" value={`${formatNum(quote.totals.weight, 2)} Kg`} />
+              <Fact label="Avg / sqft" value={formatINR(avg)} />
             </div>
-          )}
-        </div>
-        <div className="w-full shrink-0 sm:w-80">
-          <div className="space-y-0 text-[13px]">
-            <Row label="Sub Total" value={formatINR(quote.subTotal)} />
-            {quote.discountAmt > 0 && (
-              <Row
-                label={`Discount${
-                  quote.discount.mode === "percent" && quote.discount.value
-                    ? ` (${quote.discount.value}%)`
-                    : ""
-                }`}
-                value={`- ${formatINR(quote.discountAmt)}`}
-              />
+            {inv && bankLines.length > 0 && (
+              <div className="pt-1">
+                <div
+                  className="text-[10px] font-semibold uppercase tracking-[0.3em]"
+                  style={{ color: RED }}
+                >
+                  Bank / Payment Details
+                </div>
+                <div className="mt-2 space-y-1 text-[12px]" style={{ color: BODY }}>
+                  {bankLines.map(([k, v]) => (
+                    <div key={k}>
+                      <span className="inline-block w-20" style={{ color: GRAY }}>
+                        {k}
+                      </span>
+                      {v}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-            <Row label={`GST @ ${quote.gstPercent}%`} value={formatINR(quote.gstAmt)} last />
-            <div
-              className="flex items-center justify-between border-t-2 py-2.5 font-bold"
-              style={{ borderColor: RED, color: RED }}
-            >
-              <span>GRAND TOTAL</span>
-              <span>{formatINR(quote.grandTotal)}</span>
+          </div>
+
+          <div className="w-full shrink-0 sm:w-80">
+            <div className="text-[12.5px]">
+              <SummaryRow label="Sub Total" value={formatINR(quote.subTotal)} />
+              {quote.discountAmt > 0 && (
+                <SummaryRow
+                  label={`Discount${
+                    quote.discount.mode === "percent" && quote.discount.value
+                      ? ` (${quote.discount.value}%)`
+                      : ""
+                  }`}
+                  value={`- ${formatINR(quote.discountAmt)}`}
+                />
+              )}
+              <SummaryRow label={`GST @ ${quote.gstPercent}%`} value={formatINR(quote.gstAmt)} />
             </div>
-            {inv && (
+
+            {inv ? (
               <>
                 <div
-                  className="flex items-center justify-between border-b py-2 text-emerald-700"
-                  style={{ borderColor: LINE }}
+                  className="mt-2 flex items-baseline justify-between border-t pt-2.5"
+                  style={{ borderColor: INK }}
                 >
-                  <span>Received</span>
-                  <span>- {formatINR(inv.amountPaid)}</span>
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-[0.25em]"
+                    style={{ color: GRAY }}
+                  >
+                    Grand Total
+                  </span>
+                  <span style={{ fontFamily: SERIF, color: INK }} className="text-[17px]">
+                    {formatINR(quote.grandTotal)}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-baseline justify-between text-[12.5px]">
+                  <span style={{ color: GRAY }}>Received</span>
+                  <span className="text-emerald-700">- {formatINR(inv.amountPaid)}</span>
                 </div>
                 <div
-                  className="flex items-center justify-between border-b-2 py-2.5 font-bold"
-                  style={{ borderColor: TEXT, color: TEXT }}
+                  className="mt-2 flex items-baseline justify-between border-t-2 pt-3"
+                  style={{ borderColor: RED }}
                 >
-                  <span>BALANCE DUE</span>
-                  <span>{formatINR(inv.balanceDue)}</span>
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-[0.25em]"
+                    style={{ color: GRAY }}
+                  >
+                    Balance Due
+                  </span>
+                  <span
+                    style={{ fontFamily: SERIF, color: RED }}
+                    className="text-[26px] font-semibold"
+                  >
+                    {formatINR(inv.balanceDue)}
+                  </span>
                 </div>
               </>
+            ) : (
+              <div
+                className="mt-2 flex items-baseline justify-between border-t-2 pt-3"
+                style={{ borderColor: INK }}
+              >
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-[0.25em]"
+                  style={{ color: GRAY }}
+                >
+                  Grand Total
+                </span>
+                <span
+                  style={{ fontFamily: SERIF, color: INK }}
+                  className="text-[26px] font-semibold"
+                >
+                  {formatINR(quote.grandTotal)}
+                </span>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Payment history — bills only */}
+      {/* ── Payment history — bills only ── */}
       {inv && inv.payments.length > 0 && (
-        <div className="relative z-10 px-5 pt-6 sm:px-7">
-          <SectionHeading>Payment History</SectionHeading>
-          <div
-            className="mt-3 space-y-2 rounded-md px-4 py-3.5 text-[12px]"
-            style={{ background: "#F9F9FB", color: TEXT }}
-          >
-            {inv.payments.map((p) => (
-              <div key={p.id} className="flex items-start gap-2">
-                <span
-                  style={{ background: RED }}
-                  className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
-                />
-                <span className="min-w-0 flex-1">
-                  {formatDate(p.date)} &nbsp;|&nbsp; {p.mode}
+        <div data-block className="relative z-10 px-8 pt-9 sm:px-10">
+          <SectionRule>Payment History</SectionRule>
+          <div className="pt-1">
+            {inv.payments.map((p, i) => (
+              <div
+                key={p.id}
+                className={`flex items-baseline justify-between gap-4 py-2 text-[12px] ${
+                  i > 0 ? "border-t" : ""
+                }`}
+                style={{ borderColor: HAIR }}
+              >
+                <span style={{ color: BODY }}>
+                  {formatDate(p.date)} &nbsp;·&nbsp; {p.mode}
                   {p.note ? ` — ${p.note}` : ""}
                 </span>
-                <span className="shrink-0 font-semibold">{formatINR(p.amount)}</span>
+                <span className="font-medium" style={{ color: INK }}>
+                  {formatINR(p.amount)}
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Terms & conditions — quotations only */}
+      {/* ── Terms — quotations only ── */}
       {!inv && settings.termsAndConditions.some((t) => t.trim()) && (
-        <div className="relative z-10 px-5 pt-6 sm:px-7">
-          <SectionHeading>Terms &amp; Conditions</SectionHeading>
-          <div
-            className="mt-3 rounded-md px-4 py-3.5"
-            style={{ background: "#F9F9FB", color: TEXT }}
-          >
-            <ol className="grid gap-x-8 gap-y-1.5 text-[12px] sm:grid-cols-2">
-              {settings.termsAndConditions
-                .filter((t) => t.trim())
-                .map((t, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span
-                      style={{ background: RED }}
-                      className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full"
-                    />
-                    <span>{t}</span>
-                  </li>
-                ))}
-            </ol>
-          </div>
+        <div data-block className="relative z-10 px-8 pt-9 sm:px-10">
+          <SectionRule>Terms &amp; Conditions</SectionRule>
+          <ol className="grid gap-x-10 gap-y-2 pt-1 text-[11.5px] leading-relaxed sm:grid-cols-2">
+            {settings.termsAndConditions
+              .filter((t) => t.trim())
+              .map((t, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span
+                    style={{ background: RED }}
+                    className="mt-[7px] h-1 w-1 shrink-0 rounded-full"
+                  />
+                  <span style={{ color: BODY }}>{t}</span>
+                </li>
+              ))}
+          </ol>
         </div>
       )}
 
-      {/* Acceptance + signatures */}
-      <div className="relative z-10 px-5 pt-7 sm:px-7">
-        <p className="text-[11px] italic" style={{ color: GRAY }}>
-          {inv
-            ? "Received the above goods / services in good order and condition."
-            : "I hereby accept the estimate as per above mentioned price and specifications."}
-        </p>
-        <div className="mt-6 flex items-end justify-between gap-6 text-[11px]">
-          <div>
-            <div className="h-10" />
-            <div className="w-40 border-t pt-1 sm:w-48" style={{ borderColor: LINE, color: GRAY }}>
-              Customer Signature &amp; Date
+      {/* ── Signatures + thank-you + footer — one unbreakable block ── */}
+      <div data-block>
+        <div className="relative z-10 px-8 pt-8 sm:px-10">
+          <div className="flex items-end justify-between gap-6 text-[11px]">
+            <div className="flex w-40 flex-col items-center sm:w-52">
+              <div
+                className="w-full border-t pt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em]"
+                style={{ borderColor: GRAY, color: GRAY }}
+              >
+                Customer Signature
+              </div>
             </div>
-          </div>
-          <div className="text-right">
-            <div className="mb-6 text-[11px] font-bold" style={{ color: TEXT }}>
-              For {settings.company.name}
-            </div>
-            <div className="w-40 border-t pt-1 sm:w-48" style={{ borderColor: LINE, color: GRAY }}>
-              Authorized Signatory
-            </div>
-          </div>
-        </div>
-        <div style={{ color: RED }} className="pb-6 pt-6 text-center text-[11px] italic">
-          Thank you for choosing {settings.company.name}!
-        </div>
-      </div>
 
-      {/* Footer — plain contact strip, no dark bar */}
-      <div
-        className="relative z-10 border-t px-5 py-3 text-[10px] sm:px-7"
-        style={{ borderColor: LINE, color: GRAY }}
-      >
-        <div className="text-center">
+            <div className="flex w-40 flex-col items-center sm:w-52">
+              <div
+                className="text-center text-[10px] font-semibold uppercase tracking-[0.18em]"
+                style={{ color: INK }}
+              >
+                For {settings.company.name}
+              </div>
+              {settings.company.stampUrl ? (
+                <img
+                  src={settings.company.stampUrl}
+                  alt="Company stamp"
+                  className="my-1.5 h-20 w-auto max-w-[110px] object-contain"
+                />
+              ) : (
+                <div className="h-[86px]" />
+              )}
+              <div
+                className="w-full border-t pt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em]"
+                style={{ borderColor: GRAY, color: GRAY }}
+              >
+                Authorized Signatory
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{ fontFamily: SERIF, color: RED }}
+            className="pb-6 pt-7 text-center text-[15px] italic"
+          >
+            Thank you for choosing {settings.company.name}
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div
+          className="relative z-10 border-t px-4 py-3.5 text-center text-[8.5px] uppercase tracking-[0.06em]"
+          style={{ borderColor: HAIR, color: GRAY }}
+        >
           {[
             settings.company.address,
             settings.company.phones && `Ph: ${settings.company.phones}`,
-            settings.company.email && `Email: ${settings.company.email}`,
+            settings.company.email,
             settings.company.website,
           ]
             .filter(Boolean)
-            .join("   |   ")}
+            .join("  |  ")}
         </div>
-        <div className="mt-1.5 flex items-center justify-between">
-          <span>{quote.number}</span>
-          <span className="italic" style={{ color: RED }}>
-            {BRAND_TAGLINE}
-          </span>
-          <span>Page 1</span>
-        </div>
+        <div style={{ background: RED }} className="relative z-10 h-[3px]" />
       </div>
     </div>
   );
 }
 
-function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className={`flex items-center justify-between py-2 ${last ? "" : "border-b"}`}
-      style={{ borderColor: LINE, color: TEXT }}
-    >
-      <span>{label}</span>
-      <span>{value}</span>
+    <div className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: RED }}>
+      {children}
     </div>
   );
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+function SectionRule({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-b pb-1.5" style={{ borderColor: LINE }}>
-      <div
-        className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide"
-        style={{ color: TEXT }}
-      >
-        <span style={{ background: RED }} className="h-3.5 w-1 shrink-0 rounded-sm" />
-        {children}
+    <div className="mb-4 flex items-center gap-4">
+      <SectionLabel>{children}</SectionLabel>
+      <span className="h-px flex-1" style={{ background: HAIR }} />
+    </div>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[9px] font-semibold uppercase tracking-[0.22em]" style={{ color: GRAY }}>
+        {label}
       </div>
+      <div className="mt-0.5 font-medium" style={{ color: INK }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b py-2" style={{ borderColor: HAIR }}>
+      <span style={{ color: GRAY }}>{label}</span>
+      <span style={{ color: INK }}>{value}</span>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getSettings, saveSettings } from "@/lib/firestore";
+import { uploadFile, deleteFile } from "@/lib/storage";
 import type { AppSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import {
   ListChecks,
   SlidersHorizontal,
   Save,
+  Stamp,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -50,6 +52,24 @@ function SettingsPage() {
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
+  const [stampBusy, setStampBusy] = useState(false);
+
+  async function handleStampUpload(file: File) {
+    setStampBusy(true);
+    try {
+      const oldPath = s.company.stampPath;
+      const path = `users/${user!.uid}/stamp/${Date.now()}-${file.name}`;
+      const { url } = await uploadFile(path, file);
+      setS({ ...s, company: { ...s.company, stampUrl: url, stampPath: path } });
+      if (oldPath) void deleteFile(oldPath);
+      toast.success("Stamp uploaded — remember to Save Changes");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setStampBusy(false);
+    }
+  }
 
   const updateList = (key: "stairTypes" | "materials" | "units", list: string[]) =>
     setS({ ...s, dropdowns: { ...s.dropdowns, [key]: list } });
@@ -148,6 +168,62 @@ function SettingsPage() {
                   }
                 />
               </Field>
+
+              <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4 sm:col-span-2">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
+                  {s.company.stampUrl ? (
+                    <img
+                      src={s.company.stampUrl}
+                      alt="Company stamp"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <Stamp className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Company Stamp / Seal</div>
+                  <p className="text-xs text-muted-foreground">
+                    Printed in the signature area of every quotation and bill, above "Authorized
+                    Signatory". Use a PNG with transparent background for best results.
+                  </p>
+                  <div className="flex gap-2">
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={stampBusy}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleStampUpload(f);
+                          e.target.value = "";
+                        }}
+                      />
+                      <Button asChild variant="outline" size="sm" className="mt-1">
+                        <span>{stampBusy ? "Uploading…" : "Upload Stamp"}</span>
+                      </Button>
+                    </label>
+                    {s.company.stampUrl && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 text-destructive hover:text-destructive"
+                        disabled={stampBusy}
+                        onClick={() => {
+                          if (s.company.stampPath) void deleteFile(s.company.stampPath);
+                          setS({
+                            ...s,
+                            company: { ...s.company, stampUrl: undefined, stampPath: undefined },
+                          });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

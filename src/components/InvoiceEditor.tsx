@@ -11,7 +11,7 @@ import {
   deleteInvoice,
 } from "@/lib/firestore";
 import { blankItem, nextItemCode, recomputeInvoice } from "@/lib/calc";
-import { generateQuotationPdf, downloadBlob } from "@/lib/pdf";
+import { renderPreviewToPdf, downloadBlob } from "@/lib/pdf-capture";
 import type { Invoice, Payment, PaymentMode, Quotation, QuoteItem } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,7 +58,6 @@ import {
 import { toast } from "sonner";
 
 const PAYMENT_MODES: PaymentMode[] = ["Cash", "UPI", "Bank Transfer", "Cheque"];
-
 
 export function InvoiceEditor({
   initial,
@@ -194,7 +193,7 @@ export function InvoiceEditor({
       let inv = computed;
       if (!initial) inv = await saveMut.mutateAsync(undefined);
       else await saveMut.mutateAsync(undefined);
-      const blob = await generateQuotationPdf(inv, settings);
+      const blob = await renderPreviewToPdf(<QuotationPreview quote={inv} settings={settings} />);
       downloadBlob(blob, `${inv.number}.pdf`);
     } catch (e) {
       toast.error((e as Error).message);

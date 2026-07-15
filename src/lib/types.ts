@@ -118,6 +118,8 @@ export interface CompanyProfile {
   website: string;
   gst: string;
   salesPerson: string;
+  stampUrl?: string; // company stamp/seal shown in the signature area
+  stampPath?: string;
 }
 
 export interface AppSettings {

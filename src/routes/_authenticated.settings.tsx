@@ -92,20 +92,20 @@ function SettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="max-w-6xl">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
-          <TabsTrigger value="company" className="gap-1.5">
+        <TabsList className="h-auto w-full gap-1 bg-muted/60 p-1">
+          <TabsTrigger value="company" className="flex-1 gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Company
           </TabsTrigger>
-          <TabsTrigger value="bank" className="gap-1.5">
+          <TabsTrigger value="bank" className="flex-1 gap-1.5">
             <Landmark className="h-3.5 w-3.5" /> Bank
           </TabsTrigger>
-          <TabsTrigger value="terms" className="gap-1.5">
+          <TabsTrigger value="terms" className="flex-1 gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Terms
           </TabsTrigger>
-          <TabsTrigger value="dropdowns" className="gap-1.5">
+          <TabsTrigger value="dropdowns" className="flex-1 gap-1.5">
             <ListChecks className="h-3.5 w-3.5" /> Dropdowns
           </TabsTrigger>
-          <TabsTrigger value="general" className="gap-1.5">
+          <TabsTrigger value="general" className="flex-1 gap-1.5">
             <SlidersHorizontal className="h-3.5 w-3.5" /> General
           </TabsTrigger>
         </TabsList>

@@ -14,7 +14,7 @@ import { uploadFile, deleteFile } from "@/lib/storage";
 import { blankItem, nextItemCode, recomputeQuotation } from "@/lib/calc";
 import { renderPreviewToPdf, downloadBlob } from "@/lib/pdf-capture";
 import type { Client, Quotation, QuoteItem, QuoteStatus, RateMode, MeasureUnit } from "@/lib/types";
-import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
+import { DEFAULT_SETTINGS, RATE_BASIS_LABELS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -571,7 +571,11 @@ export function ItemEditor({
   }
 
   const lineAmount =
-    item.rateMode === "lumpsum" ? item.qty * item.rate : item.qty * item.measureValue * item.rate;
+    item.rateMode === "lumpsum"
+      ? item.qty * item.rate
+      : item.rateMode === "step"
+        ? item.qty * (item.steps ?? 0) * item.rate
+        : item.qty * item.measureValue * item.rate;
 
   return (
     <Card>
@@ -754,13 +758,18 @@ export function ItemEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sqft">₹ / sqft</SelectItem>
-                <SelectItem value="rft">₹ / rft</SelectItem>
-                <SelectItem value="lumpsum">Lump Sum</SelectItem>
+                {(settings.dropdowns.rateBasis?.length
+                  ? settings.dropdowns.rateBasis
+                  : (["sqft", "rft", "step", "lumpsum"] as RateMode[])
+                ).map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {RATE_BASIS_LABELS[mode] ?? mode}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          {item.rateMode !== "lumpsum" && (
+          {item.rateMode === "sqft" || item.rateMode === "rft" ? (
             <div>
               <Label className="text-xs">
                 {item.rateMode === "sqft" ? "Sqft / unit" : "Rft / unit"}
@@ -777,7 +786,11 @@ export function ItemEditor({
                 }
               />
             </div>
-          )}
+          ) : item.rateMode === "step" ? (
+            <div className="flex items-end pb-2 text-xs text-muted-foreground">
+              Uses the "Steps" count entered above
+            </div>
+          ) : null}
           <div>
             <Label className="text-xs">Rate (₹)</Label>
             <Input

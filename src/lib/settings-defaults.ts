@@ -1,8 +1,20 @@
-import type { AppSettings } from "./types";
+import type { AppSettings, RateMode } from "./types";
 
 // Brand constants — fixed parts of the Vastu Stairs Designer identity
 // (vastustairdesigner.com), used across the app, auth screen and PDF.
 export const BRAND_TAGLINE = "Staircases that define luxury";
+
+// All rate-basis modes the app knows how to calculate. Settings can enable/disable
+// and reorder which of these show up in the "Rate Basis" dropdown, but the set of
+// possible values is fixed here because each one drives a specific calc.ts formula.
+export const RATE_BASIS_ALL: RateMode[] = ["sqft", "rft", "step", "lumpsum"];
+
+export const RATE_BASIS_LABELS: Record<RateMode, string> = {
+  sqft: "₹ / sqft",
+  rft: "₹ / rft",
+  step: "₹ / step",
+  lumpsum: "Lump Sum",
+};
 
 export const DEFAULT_SETTINGS: AppSettings = {
   company: {
@@ -73,5 +85,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
       "Custom",
     ],
     units: ["sqft", "rft"],
+    rateBasis: RATE_BASIS_ALL,
   },
 };

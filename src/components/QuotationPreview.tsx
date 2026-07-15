@@ -110,8 +110,10 @@ export function QuotationPreview({
               [it.material, it.finish].filter(Boolean).join(" / "),
               it.steps ? `${it.steps} Steps` : "",
               it.width || it.height ? `${it.width || "—"} × ${it.height || "—"}` : "",
-              it.rateMode !== "lumpsum" && it.measureValue
-                ? `${formatNum(it.measureValue * it.qty, 2)} ${it.measureUnit}`
+              it.rateMode === "sqft" || it.rateMode === "rft"
+                ? it.measureValue
+                  ? `${formatNum(it.measureValue * it.qty, 2)} ${it.measureUnit}`
+                  : ""
                 : "",
               it.weight ? `${formatNum(it.weight, 2)} Kg` : "",
             ].filter(Boolean);
@@ -165,7 +167,9 @@ export function QuotationPreview({
                         Qty {it.qty} ·{" "}
                         {it.rateMode === "lumpsum"
                           ? "Lump Sum"
-                          : `${formatINR(it.rate)} / ${it.measureUnit}`}
+                          : it.rateMode === "step"
+                            ? `${formatINR(it.rate)} / step`
+                            : `${formatINR(it.rate)} / ${it.measureUnit}`}
                       </div>
                     </div>
                   </div>

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getSettings, saveSettings } from "@/lib/firestore";
 import { uploadFile, deleteFile } from "@/lib/storage";
-import type { AppSettings } from "@/lib/types";
-import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
+import type { AppSettings, RateMode } from "@/lib/types";
+import { DEFAULT_SETTINGS, RATE_BASIS_ALL, RATE_BASIS_LABELS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,8 @@ import {
   SlidersHorizontal,
   Save,
   Stamp,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -73,6 +75,10 @@ function SettingsPage() {
 
   const updateList = (key: "stairTypes" | "materials" | "units", list: string[]) =>
     setS({ ...s, dropdowns: { ...s.dropdowns, [key]: list } });
+
+  const rateBasisList = s.dropdowns.rateBasis?.length ? s.dropdowns.rateBasis : RATE_BASIS_ALL;
+  const updateRateBasis = (list: RateMode[]) =>
+    setS({ ...s, dropdowns: { ...s.dropdowns, rateBasis: list } });
 
   return (
     <div className="space-y-4 pb-24">
@@ -308,6 +314,7 @@ function SettingsPage() {
               items={s.dropdowns.units}
               onChange={(l) => updateList("units", l)}
             />
+            <RateBasisEditor list={rateBasisList} onChange={updateRateBasis} />
           </div>
         </TabsContent>
 
@@ -474,6 +481,75 @@ function DropdownEditor({
         <Button variant="outline" size="sm" onClick={() => onChange([...items, ""])}>
           <Plus className="mr-1 h-4 w-4" /> Add
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RateBasisEditor({
+  list,
+  onChange,
+}: {
+  list: RateMode[];
+  onChange: (l: RateMode[]) => void;
+}) {
+  const enabled = list.filter((m) => RATE_BASIS_ALL.includes(m));
+  const disabled = RATE_BASIS_ALL.filter((m) => !enabled.includes(m));
+
+  function move(i: number, dir: -1 | 1) {
+    const arr = [...enabled];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    onChange(arr);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Rate Basis</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Options shown in the item "Rate Basis" dropdown (Quotations &amp; Bills), in this order.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {enabled.map((mode, i) => (
+          <div key={mode} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
+            <span className="flex-1 text-sm">{RATE_BASIS_LABELS[mode]}</span>
+            <Button size="icon" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0}>
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => move(i, 1)}
+              disabled={i === enabled.length - 1}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onChange(enabled.filter((m) => m !== mode))}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+        {disabled.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {disabled.map((mode) => (
+              <Button
+                key={mode}
+                variant="outline"
+                size="sm"
+                onClick={() => onChange([...enabled, mode])}
+              >
+                <Plus className="mr-1 h-4 w-4" /> {RATE_BASIS_LABELS[mode]}
+              </Button>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

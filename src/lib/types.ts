@@ -12,7 +12,7 @@ export interface Client {
   callbackNote?: string;
 }
 
-export type RateMode = "sqft" | "rft" | "lumpsum";
+export type RateMode = "sqft" | "rft" | "step" | "lumpsum";
 export type MeasureUnit = "sqft" | "rft";
 
 export interface QuoteItem {
@@ -136,5 +136,6 @@ export interface AppSettings {
     stairTypes: string[];
     materials: string[];
     units: string[];
+    rateBasis: RateMode[];
   };
 }

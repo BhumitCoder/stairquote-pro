@@ -8,6 +8,7 @@ export function round2(n: number): number {
 
 export function computeItemAmount(item: QuoteItem): number {
   if (item.rateMode === "lumpsum") return round2(item.qty * item.rate);
+  if (item.rateMode === "step") return round2(item.qty * (item.steps ?? 0) * item.rate);
   return round2(item.qty * item.measureValue * item.rate);
 }
 
@@ -22,7 +23,10 @@ export function recomputeQuotation(
   const gstAmt = round2((taxable * gstPercent) / 100);
   const grandTotal = round2(taxable + gstAmt);
   const area = round2(
-    items.reduce((s, it) => s + (it.rateMode === "lumpsum" ? 0 : it.measureValue * it.qty), 0),
+    items.reduce(
+      (s, it) => s + (it.rateMode === "sqft" || it.rateMode === "rft" ? it.measureValue * it.qty : 0),
+      0,
+    ),
   );
   const weight = round2(items.reduce((s, it) => s + (it.weight ?? 0) * it.qty, 0));
   return {
@@ -60,7 +64,10 @@ export function recomputeInvoice(
   const gstAmt = round2((taxable * gstPercent) / 100);
   const grandTotal = round2(taxable + gstAmt);
   const area = round2(
-    items.reduce((s, it) => s + (it.rateMode === "lumpsum" ? 0 : it.measureValue * it.qty), 0),
+    items.reduce(
+      (s, it) => s + (it.rateMode === "sqft" || it.rateMode === "rft" ? it.measureValue * it.qty : 0),
+      0,
+    ),
   );
   const weight = round2(items.reduce((s, it) => s + (it.weight ?? 0) * it.qty, 0));
   const amountPaid = round2(inv.payments.reduce((s, p) => s + (p.amount || 0), 0));

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DebugPdfRouteImport } from './routes/debug-pdf'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
@@ -22,6 +23,11 @@ import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authentica
 import { Route as AuthenticatedBillsNewRouteImport } from './routes/_authenticated.bills.new'
 import { Route as AuthenticatedBillsIdRouteImport } from './routes/_authenticated.bills.$id'
 
+const DebugPdfRoute = DebugPdfRouteImport.update({
+  id: '/debug-pdf',
+  path: '/debug-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -89,6 +95,7 @@ const AuthenticatedBillsIdRoute = AuthenticatedBillsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/debug-pdf': typeof DebugPdfRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/bills/$id': typeof AuthenticatedBillsIdRoute
   '/bills/new': typeof AuthenticatedBillsNewRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/debug-pdf': typeof DebugPdfRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/bills/$id': typeof AuthenticatedBillsIdRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/auth': typeof AuthRoute
+  '/debug-pdf': typeof DebugPdfRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/bills/$id': typeof AuthenticatedBillsIdRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/debug-pdf'
     | '/settings'
     | '/bills/$id'
     | '/bills/new'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/debug-pdf'
     | '/settings'
     | '/'
     | '/bills/$id'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/debug-pdf'
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/bills/$id'
@@ -173,10 +185,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DebugPdfRoute: typeof DebugPdfRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/debug-pdf': {
+      id: '/debug-pdf'
+      path: '/debug-pdf'
+      fullPath: '/debug-pdf'
+      preLoaderRoute: typeof DebugPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -297,6 +317,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
+  DebugPdfRoute: DebugPdfRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

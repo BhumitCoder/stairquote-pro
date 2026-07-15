@@ -37,3 +37,6 @@ VITE_FIREBASE_AUTH_DOMAIN = "demo-app.firebaseapp.com"
 VITE_FIREBASE_MESSAGING_SENDER_ID = "000000000000"
 VITE_FIREBASE_PROJECT_ID = "demo-app"
 VITE_FIREBASE_STORAGE_BUCKET = "demo-app.appspot.com"
+
+[agent]
+expertMode = true

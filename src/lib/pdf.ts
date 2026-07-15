@@ -271,32 +271,41 @@ export async function generateQuotationPdf(
   const tableStartY = y;
 
   // ── ITEMS TABLE — plain grid, no dark fills ────────────────────────────────
+  // Matches the on-screen preview: bold dark item name, grey detail lines,
+  // grey bulleted specs — not a single flat block of uniform-coloured text.
   const rowImgH = 24;
+  const DESC_LINE_H = 4.0;
   const SPEC_LINE_H = 3.6;
   doc.setFont(FONT, "normal");
   doc.setFontSize(8.5);
+  interface DescCell {
+    _name: string;
+    _details: string[];
+    _specs: string[];
+    _img?: string;
+  }
   const body = quote.items.map((it, idx) => {
-    const lines: string[] = [];
-    lines.push(safe(it.name));
-    if (it.location) lines.push(`Location: ${safe(it.location)}`);
+    const details: string[] = [];
+    if (it.location) details.push(`Location: ${safe(it.location)}`);
     const mf = [it.material, it.finish].filter(Boolean).map(safe).join(" / ");
-    if (mf) lines.push(mf);
-    if (it.steps) lines.push(`Steps: ${it.steps}`);
-    if (it.weight) lines.push(`Weight: ${pdfNum(it.weight, 2)} Kg`);
+    if (mf) details.push(mf);
+    if (it.steps) details.push(`Steps: ${it.steps}`);
+    if (it.weight) details.push(`Weight: ${pdfNum(it.weight, 2)} Kg`);
 
-    const specTexts = it.specs.filter((s) => s.trim()).map((s) => `- ${safe(s)}`);
     const hasImg = !!(it.imageUrl && images[it.imageUrl]);
-    let specLines: string[] = [];
-    if (hasImg) {
-      // With a photo, specs render manually below it across the full cell width.
-      specLines = specTexts.flatMap((s) => doc.splitTextToSize(s, 58) as string[]);
-    } else {
-      lines.push(...specTexts); // no photo — the whole cell is already full-width
-    }
+    const specTexts = it.specs.filter((s) => s.trim()).map((s) => `- ${safe(s)}`);
+    const wrapWidth = hasImg ? 58 : contentW - 8 - 16 - 15 - 12 - 20 - 23 - 33 - 5;
+    const specLines = specTexts.flatMap((s) => doc.splitTextToSize(s, wrapWidth) as string[]);
 
+    const cell: DescCell = {
+      _name: safe(it.name),
+      _details: details,
+      _specs: specLines,
+      _img: hasImg ? it.imageUrl : undefined,
+    };
     return [
       String(idx + 1),
-      { content: lines.join("\n"), _img: hasImg ? it.imageUrl : undefined, _specs: specLines },
+      { content: "", ...cell },
       it.width ? String(it.width) : "-",
       it.height ? String(it.height) : "-",
       String(it.qty),
@@ -319,19 +328,18 @@ export async function generateQuotationPdf(
       fontSize: 8.5,
       cellPadding: 3,
       lineColor: LINE,
-      lineWidth: 0.15,
+      lineWidth: { top: 0, right: 0, bottom: 0.2, left: 0 } as never,
       textColor: TEXT,
-      valign: "middle",
+      valign: "top",
     },
     headStyles: {
       fillColor: WHITE,
       textColor: TEXT,
       fontStyle: "bold",
-      halign: "center",
       fontSize: 8,
       lineColor: TEXT,
-      lineWidth: { bottom: 0.5, top: 0, left: 0.15, right: 0.15 } as never,
-      cellPadding: { top: 3, bottom: 3, left: 1, right: 1 },
+      lineWidth: { bottom: 0.5, top: 0, left: 0, right: 0 } as never,
+      cellPadding: { top: 3, bottom: 3, left: 2, right: 2 },
     },
     alternateRowStyles: {
       fillColor: PANEL,
@@ -349,30 +357,27 @@ export async function generateQuotationPdf(
     },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 1) {
-        const raw = data.cell.raw as { _img?: string; _specs?: string[] } | undefined;
-        if (raw?._img) {
-          // Photo on the left, main details beside it; the bottom of the cell is
-          // reserved so the specs can span the full width under the photo.
-          const specs = raw._specs ?? [];
-          const specBlockH = specs.length ? specs.length * SPEC_LINE_H + 3 : 0;
-          data.cell.styles.minCellHeight = rowImgH + 6 + specBlockH;
-          (data.cell.styles as unknown as { cellPadding: unknown }).cellPadding = {
-            top: 2,
-            right: 2,
-            bottom: 2 + specBlockH,
-            left: 28,
-          };
-        }
+        const raw = data.cell.raw as unknown as DescCell;
+        const detailBlockH = (1 + raw._details.length) * DESC_LINE_H;
+        const specBlockH = raw._specs.length ? raw._specs.length * SPEC_LINE_H + 2.5 : 0;
+        const mainBlockH = raw._img ? Math.max(rowImgH, detailBlockH) : detailBlockH;
+        data.cell.styles.minCellHeight = mainBlockH + specBlockH + 4;
+        // Text is fully hand-drawn in didDrawCell — no automatic cell text.
+        (data.cell.styles as unknown as { cellPadding: unknown }).cellPadding = {
+          top: 2,
+          right: 2,
+          bottom: 2 + specBlockH,
+          left: raw._img ? 28 : 2,
+        };
       }
     },
     didDrawCell: (data: CellHookData) => {
       if (data.section === "body" && data.column.index === 1) {
-        const raw = data.cell.raw as { _img?: string; _specs?: string[] } | undefined;
-        const url = raw?._img;
-        if (url && images[url]) {
+        const raw = data.cell.raw as unknown as DescCell;
+        if (raw._img && images[raw._img]) {
           try {
             doc.addImage(
-              images[url] as string,
+              images[raw._img] as string,
               "JPEG",
               data.cell.x + 1.5,
               data.cell.y + 1.5,
@@ -385,14 +390,27 @@ export async function generateQuotationPdf(
             /* ignore */
           }
         }
-        const specs = raw?._specs ?? [];
-        if (specs.length) {
+        const textX = data.cell.x + (raw._img ? 28 : 2);
+        let ny = data.cell.y + 2 + 3.2;
+        doc.setFont(FONT, "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...TEXT);
+        doc.text(raw._name, textX, ny);
+        ny += DESC_LINE_H;
+        doc.setFont(FONT, "normal");
+        doc.setTextColor(...GRAY);
+        for (const line of raw._details) {
+          doc.text(line, textX, ny);
+          ny += DESC_LINE_H;
+        }
+        if (raw._specs.length) {
+          const specX = data.cell.x + 2;
+          let sy = data.cell.y + data.cell.height - raw._specs.length * SPEC_LINE_H - 2.5 + 3;
           doc.setFont(FONT, "normal");
           doc.setFontSize(8.5);
-          doc.setTextColor(...TEXT);
-          let sy = data.cell.y + data.cell.height - specs.length * SPEC_LINE_H - 2.5 + 3;
-          for (const line of specs) {
-            doc.text(line, data.cell.x + 2.5, sy);
+          doc.setTextColor(...GRAY);
+          for (const line of raw._specs) {
+            doc.text(line, specX, sy);
             sy += SPEC_LINE_H;
           }
         }
@@ -430,7 +448,7 @@ export async function generateQuotationPdf(
       fillColor: PANEL,
       textColor: TEXT,
       lineColor: LINE,
-      lineWidth: 0.15,
+      lineWidth: { top: 0, right: 0, bottom: 0.2, left: 0 } as never,
     },
     // Keep in sync with the items-table columnStyles above so columns align.
     columnStyles: {

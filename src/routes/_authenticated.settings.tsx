@@ -91,7 +91,7 @@ function SettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="company" className="max-w-4xl">
+      <Tabs defaultValue="company" className="max-w-6xl">
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
           <TabsTrigger value="company" className="gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Company
@@ -120,7 +120,7 @@ function SettingsPage() {
                 Shown on every quotation PDF header and used across the app.
               </p>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Business Name">
                 <Input
                   value={s.company.name}
@@ -133,7 +133,7 @@ function SettingsPage() {
                   onChange={(e) => setS({ ...s, company: { ...s.company, gst: e.target.value } })}
                 />
               </Field>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-2 lg:col-span-3">
                 <Field label="Address (each comma starts a new line on the PDF)">
                   <Textarea
                     rows={3}
@@ -175,7 +175,7 @@ function SettingsPage() {
                 />
               </Field>
 
-              <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4 sm:col-span-2">
+              <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4 sm:col-span-2 lg:col-span-3">
                 <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background">
                   {s.company.stampUrl ? (
                     <img
@@ -298,7 +298,7 @@ function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="dropdowns" className="mt-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <DropdownEditor
               title="Stair Types"
               items={s.dropdowns.stairTypes}
@@ -328,7 +328,7 @@ function SettingsPage() {
                 Printed on bills (tax invoices) only — never on quotations. Leave blank to hide.
               </p>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Account Name">
                 <Input
                   value={s.bank.accountName}
@@ -380,7 +380,7 @@ function SettingsPage() {
                 Defaults applied to every new quotation.
               </p>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="GST %">
                 <Input
                   type="number"

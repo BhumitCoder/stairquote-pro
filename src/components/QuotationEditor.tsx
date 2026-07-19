@@ -8,6 +8,8 @@ import {
   saveQuotation,
   nextQuoteNumber,
   nextRevisionNumber,
+  listRevisions,
+  getQuotation,
   deleteQuotation,
   listInvoices,
 } from "@/lib/firestore";
@@ -93,6 +95,22 @@ export function QuotationEditor({
     enabled: !!user && !!initial,
   });
   const linkedBills = initial ? allInvoices.filter((i) => i.quotationId === initial.id) : [];
+
+  // Revision history — if this is an original, load its revisions.
+  // If this is a revision, load its parent (original) quotation.
+  const isRevision = !!initial?.parentId;
+  const isOriginal = !!initial && !initial.parentId;
+
+  const { data: revisions = [] } = useQuery({
+    queryKey: ["revisions", user?.uid, initial?.id],
+    queryFn: () => listRevisions(user!.uid, initial!.id),
+    enabled: !!user && isOriginal,
+  });
+  const { data: parentQuote } = useQuery({
+    queryKey: ["quotation", user?.uid, initial?.parentId],
+    queryFn: () => getQuotation(user!.uid, initial!.parentId!),
+    enabled: !!user && isRevision,
+  });
 
   const client = clients.find((c) => c.id === clientId);
 
@@ -428,6 +446,50 @@ export function QuotationEditor({
                 </div>
               </div>
             </div>
+
+            {/* Revision history — shown on both originals and revisions */}
+            {isRevision && parentQuote && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/50 bg-amber-50/60 px-4 py-2.5 text-sm dark:bg-amber-900/20">
+                <GitBranch className="h-4 w-4 shrink-0 text-amber-600" />
+                <span className="text-amber-800 dark:text-amber-300">
+                  This is Revision {initial.revision} of
+                </span>
+                <Link
+                  to="/quotations/$id"
+                  params={{ id: parentQuote.id }}
+                  className="font-semibold text-amber-700 hover:underline dark:text-amber-400"
+                >
+                  {parentQuote.number}
+                </Link>
+                <span className="text-muted-foreground">
+                  (original — {parentQuote.status})
+                </span>
+              </div>
+            )}
+
+            {isOriginal && revisions.length > 0 && (
+              <div className="rounded-lg border border-amber-300/50 bg-amber-50/60 px-4 py-3 dark:bg-amber-900/20">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+                  <GitBranch className="h-4 w-4" />
+                  {revisions.length} Revision{revisions.length > 1 ? "s" : ""} of this quotation
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {revisions.map((r) => (
+                    <Link
+                      key={r.id}
+                      to="/quotations/$id"
+                      params={{ id: r.id }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1 text-sm font-semibold text-amber-700 hover:bg-amber-50 dark:bg-transparent dark:text-amber-400"
+                    >
+                      {r.number}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        · {r.status}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {linkedBills.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-2.5 text-sm">

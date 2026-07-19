@@ -220,6 +220,18 @@ export async function nextInvoiceNumber(uid: string, prefix = "INV"): Promise<st
   return `${prefix}-${String(seq).padStart(5, "0")}`;
 }
 
+// All revisions of an original quotation (parentId == originalId), sorted asc.
+export async function listRevisions(uid: string, parentId: string): Promise<Quotation[]> {
+  const q = query(
+    collection(fbDb(), "users", uid, "quotations"),
+    where("parentId", "==", parentId),
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Quotation, "id">) }))
+    .sort((a, b) => (a.revision ?? 0) - (b.revision ?? 0));
+}
+
 // Revision number for an existing quotation — does NOT touch the counter.
 // Returns the next  "Q-00001/N"  string and its revision index.
 export async function nextRevisionNumber(

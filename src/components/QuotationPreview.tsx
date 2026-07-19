@@ -207,9 +207,13 @@ export function QuotationPreview({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-x-10 gap-y-2.5 text-[12px]">
               <Fact label="Total Items" value={String(quote.totals.itemCount)} />
-              <Fact label="Total Area" value={`${formatNum(quote.totals.area, 2)} sqft`} />
-              <Fact label="Total Weight" value={`${formatNum(quote.totals.weight, 2)} Kg`} />
-              <Fact label="Avg / sqft" value={formatINR(avg)} />
+              {quote.totals.area > 0 && (
+                <Fact label="Total Area" value={`${formatNum(quote.totals.area, 2)} sqft`} />
+              )}
+              {quote.totals.weight > 0 && (
+                <Fact label="Total Weight" value={`${formatNum(quote.totals.weight, 2)} Kg`} />
+              )}
+              {avg > 0 && <Fact label="Avg / sqft" value={formatINR(avg)} />}
             </div>
             {inv && bankLines.length > 0 && (
               <div className="pt-1">

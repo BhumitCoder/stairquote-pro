@@ -109,7 +109,7 @@ export function QuotationPreview({
               it.location && `Location: ${it.location}`,
               [it.material, it.finish].filter(Boolean).join(" / "),
               it.steps ? `${it.steps} Steps` : "",
-              it.width || it.height ? `${it.width || "—"} × ${it.height || "—"}` : "",
+              it.width && it.height ? `${it.width} × ${it.height} mm` : it.width ? `W ${it.width} mm` : it.height ? `H ${it.height} mm` : "",
               it.rateMode === "sqft" || it.rateMode === "rft"
                 ? it.measureValue
                   ? `${formatNum(it.measureValue * it.qty, 2)} ${it.measureUnit}`
@@ -164,14 +164,19 @@ export function QuotationPreview({
                         {formatINR(it.amount)}
                       </div>
                       <div className="mt-0.5 text-[11px]" style={{ color: GRAY }}>
-                        Qty {it.qty} ·{" "}
-                        {it.rateMode === "lumpsum"
-                          ? "Lump Sum"
-                          : it.rateMode === "step"
-                            ? `${formatINR(it.rate)} / step`
-                            : it.rateMode === "sqft" || it.rateMode === "rft"
-                              ? `${formatINR(it.rate)} / ${it.measureUnit}`
-                              : `${formatINR(it.rate)} / ${it.rateMode}`}
+                        Qty {it.qty}
+                        {it.rate > 0 && (
+                          <>
+                            {" · "}
+                            {it.rateMode === "lumpsum"
+                              ? "Lump Sum"
+                              : it.rateMode === "step"
+                                ? `${formatINR(it.rate)} / step`
+                                : it.rateMode === "sqft" || it.rateMode === "rft"
+                                  ? `${formatINR(it.rate)} / ${it.measureUnit}`
+                                  : `${formatINR(it.rate)} / ${it.rateMode}`}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -250,7 +255,9 @@ export function QuotationPreview({
                   value={`- ${formatINR(quote.discountAmt)}`}
                 />
               )}
-              <SummaryRow label={`GST @ ${quote.gstPercent}%`} value={formatINR(quote.gstAmt)} />
+              {quote.gstAmt > 0 && (
+                <SummaryRow label={`GST @ ${quote.gstPercent}%`} value={formatINR(quote.gstAmt)} />
+              )}
             </div>
 
             {inv ? (

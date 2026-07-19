@@ -243,12 +243,33 @@ function SettingsPage() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ListChecks className="h-4 w-4 text-primary" /> Terms &amp; Conditions
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Numbered list printed at the bottom of every quotation.
-                </p>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ListChecks className="h-4 w-4 text-primary" /> Terms &amp; Conditions
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Numbered list printed at the bottom of every quotation.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => {
+                      if (
+                        s.termsAndConditions.length === 0 ||
+                        confirm(
+                          "This will replace all current terms with the default set. Continue?",
+                        )
+                      ) {
+                        setS({ ...s, termsAndConditions: DEFAULT_SETTINGS.termsAndConditions });
+                      }
+                    }}
+                  >
+                    ↺ Reset to Default Terms
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 {s.termsAndConditions.map((t, i) => (

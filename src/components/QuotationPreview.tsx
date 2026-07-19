@@ -349,13 +349,13 @@ export function QuotationPreview({
 
       {/* ── Terms — quotations only ── */}
       {!inv && settings.termsAndConditions.some((t) => t.trim()) && (
-        <div data-block className="relative z-10 px-8 pt-9 sm:px-10">
+        <div className="relative z-10 px-8 pt-9 sm:px-10">
           <SectionRule>Terms &amp; Conditions</SectionRule>
           <ol className="grid gap-y-3 pt-1 text-[11.5px] leading-relaxed">
             {settings.termsAndConditions
               .filter((t) => t.trim())
               .map((t, i) => (
-                <li key={i} className="flex items-start gap-2.5">
+                <li key={i} data-block className="flex items-start gap-2.5">
                   <span
                     style={{ background: RED }}
                     className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"

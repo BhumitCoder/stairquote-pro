@@ -220,6 +220,23 @@ export async function nextInvoiceNumber(uid: string, prefix = "INV"): Promise<st
   return `${prefix}-${String(seq).padStart(5, "0")}`;
 }
 
+// Revision number for an existing quotation — does NOT touch the counter.
+// Returns the next  "Q-00001/N"  string and its revision index.
+export async function nextRevisionNumber(
+  uid: string,
+  parentId: string,
+  parentNumber: string,
+): Promise<{ number: string; revision: number }> {
+  const baseNumber = parentNumber.split("/")[0]; // strip any existing "/N" suffix
+  const q = query(
+    collection(fbDb(), "users", uid, "quotations"),
+    where("parentId", "==", parentId),
+  );
+  const snap = await getDocs(q);
+  const revision = snap.size + 1;
+  return { number: `${baseNumber}/${revision}`, revision };
+}
+
 // Global running quote number (Q-00001, Q-00002, …) using a transaction.
 export async function nextQuoteNumber(uid: string, prefix = "Q"): Promise<string> {
   const counterRef = doc(fbDb(), "users", uid, "counters", "quotations");

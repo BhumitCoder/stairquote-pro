@@ -174,7 +174,16 @@ function QuotationsPage() {
                     className="cursor-pointer"
                     onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
                   >
-                    <TableCell className="font-medium text-primary">{q.number}</TableCell>
+                    <TableCell className="font-medium text-primary">
+                      <div className="flex items-center gap-1.5">
+                        {q.number}
+                        {q.revision && (
+                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                            Rev
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="max-w-[220px]">
                       <div className="truncate font-medium">{q.clientSnapshot?.name || "—"}</div>
                       {q.clientSnapshot?.org && (

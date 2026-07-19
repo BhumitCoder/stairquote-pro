@@ -7,6 +7,7 @@ import {
   getSettings,
   saveQuotation,
   nextQuoteNumber,
+  nextRevisionNumber,
   deleteQuotation,
   listInvoices,
 } from "@/lib/firestore";
@@ -43,6 +44,7 @@ import {
   ArrowLeft,
   Loader2,
   ReceiptText,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -144,10 +146,43 @@ export function QuotationEditor({
     },
   });
 
+  // Create a revision of the current quotation — copies all content, assigns
+  // the next /N sub-number off the original, does NOT consume the main counter.
+  const revMut = useMutation({
+    mutationFn: async () => {
+      if (!computed) throw new Error("Nothing to revise");
+      // Always link back to the true original, even if we're revising a revision.
+      const trueParentId = initial!.parentId ?? initial!.id;
+      const baseNumber = initial!.number.split("/")[0];
+      const { number, revision } = await nextRevisionNumber(
+        user!.uid,
+        trueParentId,
+        baseNumber,
+      );
+      const q: Omit<Quotation, "id"> = {
+        ...computed,
+        number,
+        parentId: trueParentId,
+        revision,
+        status: "Draft",
+        date: Date.now(),
+        pdfUrl: undefined,
+      };
+      const id = await saveQuotation(user!.uid, q);
+      return { ...q, id } as Quotation;
+    },
+    onSuccess: (q) => {
+      toast.success(`Revision ${q.number} created`);
+      qc.invalidateQueries({ queryKey: ["quotations", user?.uid] });
+      nav({ to: "/quotations/$id", params: { id: q.id } });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   // One shared "busy" flag: while any save/delete/PDF action runs, every action
   // button is disabled — a double-click on a new quotation must never create two.
   const [pdfBusy, setPdfBusy] = useState(false);
-  const actionBusy = saveMut.isPending || delMut.isPending || pdfBusy;
+  const actionBusy = saveMut.isPending || delMut.isPending || revMut.isPending || pdfBusy;
 
   async function handleDownloadPdf() {
     if (!computed) return toast.error("Pick a client first");
@@ -174,9 +209,16 @@ export function QuotationEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" onClick={() => nav({ to: "/" })}>
-          <ArrowLeft className="mr-1 h-4 w-4" /> Back
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => nav({ to: "/" })}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back
+          </Button>
+          {initial?.revision && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+              Revision {initial.revision} of {initial.number.split("/")[0]}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {initial && <StatusBadge status={status} />}
           {initial && (
@@ -417,6 +459,22 @@ export function QuotationEditor({
             </div>
 
             <div className="flex flex-wrap justify-end gap-2 pt-2">
+              {initial && (
+                <Button
+                  variant="outline"
+                  className="border-amber-400/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-400"
+                  disabled={actionBusy}
+                  onClick={() => revMut.mutate()}
+                  title="Create a revised copy of this quotation (e.g. Q-00001/1)"
+                >
+                  {revMut.isPending ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <GitBranch className="mr-1 h-4 w-4" />
+                  )}
+                  {revMut.isPending ? "Creating…" : "Create Revision"}
+                </Button>
+              )}
               {initial && (
                 <Button
                   variant="outline"

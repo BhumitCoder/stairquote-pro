@@ -12,7 +12,9 @@ export interface Client {
   callbackNote?: string;
 }
 
-export type RateMode = "sqft" | "rft" | "step" | "lumpsum";
+// Built-in values have dedicated calc formulas; any other string falls back to
+// the generic  qty × measureValue × rate  formula (same as sqft/rft).
+export type RateMode = string;
 export type MeasureUnit = "sqft" | "rft";
 
 export interface QuoteItem {
@@ -136,6 +138,6 @@ export interface AppSettings {
     stairTypes: string[];
     materials: string[];
     units: string[];
-    rateBasis: RateMode[];
+    rateBasis: string[];
   };
 }

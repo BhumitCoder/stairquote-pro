@@ -5,7 +5,12 @@ import { useAuth } from "@/lib/auth-context";
 import { getSettings, saveSettings } from "@/lib/firestore";
 import { uploadFile, deleteFile } from "@/lib/storage";
 import type { AppSettings, RateMode } from "@/lib/types";
-import { DEFAULT_SETTINGS, RATE_BASIS_ALL, RATE_BASIS_LABELS } from "@/lib/settings-defaults";
+import {
+  DEFAULT_SETTINGS,
+  RATE_BASIS_ALL,
+  RATE_BASIS_BUILTIN,
+  rateBasisLabel,
+} from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -490,18 +495,28 @@ function RateBasisEditor({
   list,
   onChange,
 }: {
-  list: RateMode[];
-  onChange: (l: RateMode[]) => void;
+  list: string[];
+  onChange: (l: string[]) => void;
 }) {
-  const enabled = list.filter((m) => RATE_BASIS_ALL.includes(m));
-  const disabled = RATE_BASIS_ALL.filter((m) => !enabled.includes(m));
+  const [newEntry, setNewEntry] = useState("");
+
+  // Split into built-ins already in the list, built-ins not yet added, and custom entries.
+  const active = list.length ? list : RATE_BASIS_ALL;
+  const disabledBuiltins = RATE_BASIS_BUILTIN.filter((m) => !active.includes(m));
 
   function move(i: number, dir: -1 | 1) {
-    const arr = [...enabled];
+    const arr = [...active];
     const j = i + dir;
     if (j < 0 || j >= arr.length) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
     onChange(arr);
+  }
+
+  function addCustom() {
+    const val = newEntry.trim();
+    if (!val || active.includes(val)) return;
+    onChange([...active, val]);
+    setNewEntry("");
   }
 
   return (
@@ -509,13 +524,19 @@ function RateBasisEditor({
       <CardHeader>
         <CardTitle className="text-base">Rate Basis</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Options shown in the item "Rate Basis" dropdown (Quotations &amp; Bills), in this order.
+          Options shown in the "Rate Basis" dropdown in Quotations &amp; Bills. Reorder, remove, or
+          add custom units (e.g. ₹&nbsp;/&nbsp;rmt, ₹&nbsp;/&nbsp;kg).
         </p>
       </CardHeader>
       <CardContent className="space-y-2">
-        {enabled.map((mode, i) => (
+        {active.map((mode, i) => (
           <div key={mode} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
-            <span className="flex-1 text-sm">{RATE_BASIS_LABELS[mode]}</span>
+            <span className="flex-1 text-sm font-medium">{rateBasisLabel(mode)}</span>
+            {!RATE_BASIS_BUILTIN.includes(mode) && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                custom
+              </span>
+            )}
             <Button size="icon" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0}>
               <ChevronUp className="h-4 w-4" />
             </Button>
@@ -523,33 +544,48 @@ function RateBasisEditor({
               size="icon"
               variant="ghost"
               onClick={() => move(i, 1)}
-              disabled={i === enabled.length - 1}
+              disabled={i === active.length - 1}
             >
               <ChevronDown className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onChange(enabled.filter((m) => m !== mode))}
+              onClick={() => onChange(active.filter((m) => m !== mode))}
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
         ))}
-        {disabled.length > 0 && (
+
+        {/* Re-add disabled built-ins */}
+        {disabledBuiltins.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
-            {disabled.map((mode) => (
+            {disabledBuiltins.map((mode) => (
               <Button
                 key={mode}
                 variant="outline"
                 size="sm"
-                onClick={() => onChange([...enabled, mode])}
+                onClick={() => onChange([...active, mode])}
               >
-                <Plus className="mr-1 h-4 w-4" /> {RATE_BASIS_LABELS[mode]}
+                <Plus className="mr-1 h-4 w-4" /> {rateBasisLabel(mode)}
               </Button>
             ))}
           </div>
         )}
+
+        {/* Add custom entry */}
+        <div className="flex gap-2 pt-2">
+          <Input
+            placeholder="e.g. ₹ / rmt  or  per kg"
+            value={newEntry}
+            onChange={(e) => setNewEntry(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCustom()}
+          />
+          <Button variant="outline" size="sm" onClick={addCustom} disabled={!newEntry.trim()}>
+            <Plus className="mr-1 h-4 w-4" /> Add
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

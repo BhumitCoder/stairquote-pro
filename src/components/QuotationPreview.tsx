@@ -169,7 +169,9 @@ export function QuotationPreview({
                           ? "Lump Sum"
                           : it.rateMode === "step"
                             ? `${formatINR(it.rate)} / step`
-                            : `${formatINR(it.rate)} / ${it.measureUnit}`}
+                            : it.rateMode === "sqft" || it.rateMode === "rft"
+                              ? `${formatINR(it.rate)} / ${it.measureUnit}`
+                              : `${formatINR(it.rate)} / ${it.rateMode}`}
                       </div>
                     </div>
                   </div>

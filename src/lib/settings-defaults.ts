@@ -7,14 +7,26 @@ export const BRAND_TAGLINE = "Staircases that define luxury";
 // All rate-basis modes the app knows how to calculate. Settings can enable/disable
 // and reorder which of these show up in the "Rate Basis" dropdown, but the set of
 // possible values is fixed here because each one drives a specific calc.ts formula.
-export const RATE_BASIS_ALL: RateMode[] = ["sqft", "rft", "step", "lumpsum"];
+// The four built-in modes that have dedicated calc formulas.
+export const RATE_BASIS_BUILTIN: string[] = ["sqft", "rft", "step", "lumpsum"];
 
-export const RATE_BASIS_LABELS: Record<RateMode, string> = {
+// Default order shown when no setting has been saved yet.
+export const RATE_BASIS_ALL: string[] = RATE_BASIS_BUILTIN;
+
+// Human-readable label for built-in modes.
+// For any custom mode (free text the user added), just show the value itself.
+const BUILTIN_LABELS: Record<string, string> = {
   sqft: "₹ / sqft",
   rft: "₹ / rft",
   step: "₹ / step",
   lumpsum: "Lump Sum",
 };
+export function rateBasisLabel(mode: string): string {
+  return BUILTIN_LABELS[mode] ?? mode;
+}
+
+// Keep old named export so existing imports don't break.
+export const RATE_BASIS_LABELS = BUILTIN_LABELS;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   company: {

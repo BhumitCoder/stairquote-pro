@@ -515,8 +515,13 @@ export function QuotationEditor({
               <div className="mb-2 text-sm font-medium text-muted-foreground">
                 Quotation Preview
               </div>
-              <div className="overflow-hidden rounded-lg border">
-                <QuotationPreview quote={computed} settings={settings} />
+              {/* On mobile: horizontal-scroll so the A4 document renders at full
+                  fidelity (same layout as desktop/PDF) instead of wrapping
+                  into a distorted narrow column. */}
+              <div className="overflow-x-auto rounded-lg border">
+                <div className="min-w-[680px]">
+                  <QuotationPreview quote={computed} settings={settings} />
+                </div>
               </div>
             </div>
 

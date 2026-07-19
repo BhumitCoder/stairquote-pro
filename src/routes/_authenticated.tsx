@@ -536,7 +536,7 @@ function AuthedLayout() {
         </header>
 
         {/* Scrollable content — extra bottom padding on mobile for the bottom nav */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
           <div className="px-4 py-5 pb-24 md:px-8 md:py-8 md:pb-8">
             <Outlet />
           </div>

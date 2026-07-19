@@ -141,56 +141,104 @@ function BillsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[130px]">Bill No.</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="w-[120px]">Date</TableHead>
-                  <TableHead className="w-[150px] text-right">Amount</TableHead>
-                  <TableHead className="w-[140px] text-right">Received</TableHead>
-                  <TableHead className="w-[150px] text-right">Balance</TableHead>
-                  <TableHead className="w-[150px] pl-8">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paged.map((inv) => (
-                  <TableRow
-                    key={inv.id}
-                    className="cursor-pointer"
-                    onClick={() => nav({ to: "/bills/$id", params: { id: inv.id } })}
-                  >
-                    <TableCell className="font-medium">{inv.number}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {inv.clientSnapshot?.name || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(inv.date)}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatINR(inv.grandTotal)}
-                    </TableCell>
-                    <TableCell className="text-right text-success">
-                      {formatINR(inv.amountPaid)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-primary">
-                      {formatINR(inv.balanceDue)}
-                    </TableCell>
-                    <TableCell className="pl-8">
-                      <StatusBadge status={inv.status} />
-                    </TableCell>
+        <>
+          {/* ── Mobile card list ── */}
+          <div className="space-y-2 md:hidden">
+            {paged.map((inv) => (
+              <Card
+                key={inv.id}
+                className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]"
+                onClick={() => nav({ to: "/bills/$id", params: { id: inv.id } })}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-foreground">{inv.number}</div>
+                      <div className="mt-0.5 truncate font-medium">
+                        {inv.clientSnapshot?.name || "—"}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{formatDate(inv.date)}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-base font-bold">{formatINR(inv.grandTotal)}</div>
+                      <div className="mt-1"><StatusBadge status={inv.status} /></div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Received</div>
+                      <div className="font-semibold text-success">{formatINR(inv.amountPaid)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-muted-foreground">Balance</div>
+                      <div className="font-semibold text-primary">{formatINR(inv.balanceDue)}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            <div className="rounded-lg border bg-card">
+              <TablePagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onChange={setPage}
+              />
+            </div>
+          </div>
+
+          {/* ── Desktop table ── */}
+          <Card className="hidden overflow-hidden md:block">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[130px]">Bill No.</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead className="w-[120px]">Date</TableHead>
+                    <TableHead className="w-[150px] text-right">Amount</TableHead>
+                    <TableHead className="w-[140px] text-right">Received</TableHead>
+                    <TableHead className="w-[150px] text-right">Balance</TableHead>
+                    <TableHead className="w-[150px] pl-8">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              page={currentPage}
-              pageSize={PAGE_SIZE}
-              total={filtered.length}
-              onChange={setPage}
-            />
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {paged.map((inv) => (
+                    <TableRow
+                      key={inv.id}
+                      className="cursor-pointer"
+                      onClick={() => nav({ to: "/bills/$id", params: { id: inv.id } })}
+                    >
+                      <TableCell className="font-medium">{inv.number}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {inv.clientSnapshot?.name || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(inv.date)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatINR(inv.grandTotal)}
+                      </TableCell>
+                      <TableCell className="text-right text-success">
+                        {formatINR(inv.amountPaid)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-primary">
+                        {formatINR(inv.balanceDue)}
+                      </TableCell>
+                      <TableCell className="pl-8">
+                        <StatusBadge status={inv.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onChange={setPage}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

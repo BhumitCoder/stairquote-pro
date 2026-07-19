@@ -153,70 +153,121 @@ function QuotationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[130px]">Quote No.</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="hidden w-[140px] md:table-cell">Phone</TableHead>
-                  <TableHead className="w-[120px]">Date</TableHead>
-                  <TableHead className="hidden w-[80px] text-center sm:table-cell">Items</TableHead>
-                  <TableHead className="w-[160px] text-right">Amount</TableHead>
-                  <TableHead className="w-[130px] pl-8">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paged.map((q) => (
-                  <TableRow
-                    key={q.id}
-                    className="cursor-pointer"
-                    onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
-                  >
-                    <TableCell className="font-medium text-primary">
+        <>
+          {/* ── Mobile card list ── */}
+          <div className="space-y-2 md:hidden">
+            {paged.map((q) => (
+              <Card
+                key={q.id}
+                className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]"
+                onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        {q.number}
+                        <span className="font-semibold text-primary">{q.number}</span>
                         {q.revision && (
-                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                             Rev
                           </span>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="max-w-[220px]">
-                      <div className="truncate font-medium">{q.clientSnapshot?.name || "—"}</div>
+                      <div className="mt-0.5 truncate font-medium text-foreground">
+                        {q.clientSnapshot?.name || "—"}
+                      </div>
                       {q.clientSnapshot?.org && (
-                        <div className="truncate text-xs text-muted-foreground">
-                          {q.clientSnapshot.org}
-                        </div>
+                        <div className="truncate text-xs text-muted-foreground">{q.clientSnapshot.org}</div>
                       )}
-                    </TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {q.clientSnapshot?.phone || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
-                    <TableCell className="hidden text-center text-muted-foreground sm:table-cell">
-                      {q.totals.itemCount}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {formatINR(q.grandTotal)}
-                    </TableCell>
-                    <TableCell className="pl-8">
-                      <StatusBadge status={q.status} />
-                    </TableCell>
+                      {q.clientSnapshot?.phone && (
+                        <div className="mt-0.5 text-xs text-muted-foreground">{q.clientSnapshot.phone}</div>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-base font-bold">{formatINR(q.grandTotal)}</div>
+                      <div className="mt-1"><StatusBadge status={q.status} /></div>
+                      <div className="mt-1 text-xs text-muted-foreground">{formatDate(q.date)}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            <div className="rounded-lg border bg-card">
+              <TablePagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onChange={goToPage}
+              />
+            </div>
+          </div>
+
+          {/* ── Desktop table ── */}
+          <Card className="hidden overflow-hidden md:block">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[130px]">Quote No.</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead className="hidden w-[140px] md:table-cell">Phone</TableHead>
+                    <TableHead className="w-[120px]">Date</TableHead>
+                    <TableHead className="hidden w-[80px] text-center sm:table-cell">Items</TableHead>
+                    <TableHead className="w-[160px] text-right">Amount</TableHead>
+                    <TableHead className="w-[130px] pl-8">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              page={currentPage}
-              pageSize={PAGE_SIZE}
-              total={filtered.length}
-              onChange={goToPage}
-            />
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {paged.map((q) => (
+                    <TableRow
+                      key={q.id}
+                      className="cursor-pointer"
+                      onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
+                    >
+                      <TableCell className="font-medium text-primary">
+                        <div className="flex items-center gap-1.5">
+                          {q.number}
+                          {q.revision && (
+                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                              Rev
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[220px]">
+                        <div className="truncate font-medium">{q.clientSnapshot?.name || "—"}</div>
+                        {q.clientSnapshot?.org && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {q.clientSnapshot.org}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {q.clientSnapshot?.phone || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
+                      <TableCell className="hidden text-center text-muted-foreground sm:table-cell">
+                        {q.totals.itemCount}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatINR(q.grandTotal)}
+                      </TableCell>
+                      <TableCell className="pl-8">
+                        <StatusBadge status={q.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onChange={goToPage}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

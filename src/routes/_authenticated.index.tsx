@@ -591,38 +591,68 @@ function Dashboard() {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Quote No.</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile cards */}
+                <ul className="divide-y md:hidden">
                   {recent.map((q) => (
-                    <TableRow
+                    <li
                       key={q.id}
-                      className="cursor-pointer"
+                      className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-accent active:bg-accent"
                       onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
                     >
-                      <TableCell className="font-medium">{q.number}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {q.clientSnapshot?.name || "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={q.status} />
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatINR(q.grandTotal)}
-                      </TableCell>
-                    </TableRow>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-primary">{q.number}</span>
+                          {q.revision && (
+                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                              Rev
+                            </span>
+                          )}
+                        </div>
+                        <div className="truncate text-sm">{q.clientSnapshot?.name || "—"}</div>
+                        <div className="text-xs text-muted-foreground">{formatDate(q.date)}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-bold">{formatINR(q.grandTotal)}</div>
+                        <div className="mt-1"><StatusBadge status={q.status} /></div>
+                      </div>
+                    </li>
                   ))}
-                </TableBody>
-              </Table>
+                </ul>
+                {/* Desktop table */}
+                <Table className="hidden md:table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Quote No.</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recent.map((q) => (
+                      <TableRow
+                        key={q.id}
+                        className="cursor-pointer"
+                        onClick={() => nav({ to: "/quotations/$id", params: { id: q.id } })}
+                      >
+                        <TableCell className="font-medium">{q.number}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {q.clientSnapshot?.name || "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={q.status} />
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatINR(q.grandTotal)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
             )}
           </CardContent>
         </Card>

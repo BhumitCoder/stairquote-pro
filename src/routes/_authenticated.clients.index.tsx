@@ -126,123 +126,227 @@ function ClientsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="hidden sm:table-cell">Phone</TableHead>
-                  <TableHead className="hidden md:table-cell">Location</TableHead>
-                  <TableHead>Callback</TableHead>
-                  <TableHead className="w-[120px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paged.map((c) => {
-                  const cbToday = c.callbackDate && isToday(c.callbackDate);
-                  const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);
-                  return (
-                    <TableRow
-                      key={c.id}
-                      className="cursor-pointer"
-                      onClick={() => nav({ to: "/clients/$id", params: { id: c.id } })}
-                    >
-                      <TableCell className="max-w-[240px]">
-                        <div className="flex items-center gap-3">
-                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold uppercase text-primary">
-                            {c.name[0] ?? "C"}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate font-medium">{c.name}</div>
-                            {c.org && (
-                              <div className="truncate text-xs text-muted-foreground">{c.org}</div>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground sm:table-cell">
-                        {c.phone || "—"}
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">
-                        {[c.city, c.state].filter(Boolean).join(", ") || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {c.callbackDate ? (
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                              cbToday
-                                ? "bg-primary/15 text-primary"
-                                : cbOverdue
-                                  ? "bg-destructive/15 text-destructive"
-                                  : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            {cbToday ? (
-                              <PhoneCall className="h-3 w-3" />
-                            ) : (
-                              <CalendarClock className="h-3 w-3" />
-                            )}
-                            {cbToday
-                              ? "Call today"
-                              : cbOverdue
-                                ? `Overdue: ${formatDate(c.callbackDate)}`
-                                : formatDate(c.callbackDate)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+        <>
+          {/* ── Mobile card list ── */}
+          <div className="space-y-2 md:hidden">
+            {paged.map((c) => {
+              const cbToday = c.callbackDate && isToday(c.callbackDate);
+              const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);
+              return (
+                <Card
+                  key={c.id}
+                  className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]"
+                  onClick={() => nav({ to: "/clients/$id", params: { id: c.id } })}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-base font-bold uppercase text-primary">
+                        {c.name[0] ?? "C"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold">{c.name}</div>
+                        {c.org && (
+                          <div className="truncate text-xs text-muted-foreground">{c.org}</div>
                         )}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                            <Link to="/clients/$id" params={{ id: c.id }}>
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setEditing(c);
-                              setOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            disabled={delMut.isPending}
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  `Delete ${c.name}? Existing quotations for this client will be kept.`,
+                        {c.phone && (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            {c.phone}
+                          </div>
+                        )}
+                        {(c.city || c.state) && (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            {[c.city, c.state].filter(Boolean).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                      {/* Action buttons */}
+                      <div
+                        className="flex shrink-0 flex-col gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Link to="/clients/$id" params={{ id: c.id }}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => { setEditing(c); setOpen(true); }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={delMut.isPending}
+                          onClick={() => {
+                            if (confirm(`Delete ${c.name}? Existing quotations for this client will be kept.`))
+                              delMut.mutate(c.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    {c.callbackDate && (
+                      <div className="mt-3">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                            cbToday
+                              ? "bg-primary/15 text-primary"
+                              : cbOverdue
+                                ? "bg-destructive/15 text-destructive"
+                                : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {cbToday ? <PhoneCall className="h-3 w-3" /> : <CalendarClock className="h-3 w-3" />}
+                          {cbToday
+                            ? "Call today"
+                            : cbOverdue
+                              ? `Overdue: ${formatDate(c.callbackDate)}`
+                              : formatDate(c.callbackDate)}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+            <div className="rounded-lg border bg-card">
+              <TablePagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onChange={setPage}
+              />
+            </div>
+          </div>
+
+          {/* ── Desktop table ── */}
+          <Card className="hidden overflow-hidden md:block">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client</TableHead>
+                    <TableHead className="hidden sm:table-cell">Phone</TableHead>
+                    <TableHead className="hidden md:table-cell">Location</TableHead>
+                    <TableHead>Callback</TableHead>
+                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paged.map((c) => {
+                    const cbToday = c.callbackDate && isToday(c.callbackDate);
+                    const cbOverdue = c.callbackDate && isOverdue(c.callbackDate);
+                    return (
+                      <TableRow
+                        key={c.id}
+                        className="cursor-pointer"
+                        onClick={() => nav({ to: "/clients/$id", params: { id: c.id } })}
+                      >
+                        <TableCell className="max-w-[240px]">
+                          <div className="flex items-center gap-3">
+                            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-bold uppercase text-primary">
+                              {c.name[0] ?? "C"}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{c.name}</div>
+                              {c.org && (
+                                <div className="truncate text-xs text-muted-foreground">{c.org}</div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground sm:table-cell">
+                          {c.phone || "—"}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                          {[c.city, c.state].filter(Boolean).join(", ") || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {c.callbackDate ? (
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                                cbToday
+                                  ? "bg-primary/15 text-primary"
+                                  : cbOverdue
+                                    ? "bg-destructive/15 text-destructive"
+                                    : "bg-muted text-muted-foreground",
+                              )}
+                            >
+                              {cbToday ? (
+                                <PhoneCall className="h-3 w-3" />
+                              ) : (
+                                <CalendarClock className="h-3 w-3" />
+                              )}
+                              {cbToday
+                                ? "Call today"
+                                : cbOverdue
+                                  ? `Overdue: ${formatDate(c.callbackDate)}`
+                                  : formatDate(c.callbackDate)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                              <Link to="/clients/$id" params={{ id: c.id }}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setEditing(c);
+                                setOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={delMut.isPending}
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    `Delete ${c.name}? Existing quotations for this client will be kept.`,
+                                  )
                                 )
-                              )
-                                delMut.mutate(c.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            <TablePagination
-              page={currentPage}
-              pageSize={PAGE_SIZE}
-              total={filtered.length}
-              onChange={setPage}
-            />
-          </CardContent>
-        </Card>
+                                  delMut.mutate(c.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <TablePagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onChange={setPage}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <ClientDialog

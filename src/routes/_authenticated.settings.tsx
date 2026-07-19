@@ -255,7 +255,7 @@ function SettingsPage() {
                   <div key={i} className="flex gap-2">
                     <span className="mt-2.5 text-sm text-muted-foreground">{i + 1}.</span>
                     <Textarea
-                      rows={2}
+                      rows={Math.max(2, (t.match(/\n/g) ?? []).length + 1)}
                       value={t}
                       onChange={(e) => {
                         const arr = [...s.termsAndConditions];

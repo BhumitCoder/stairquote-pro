@@ -344,23 +344,43 @@ export function InvoiceEditor({
                   />
                 </div>
               </div>
-              <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-                <Row label="Sub Total" value={formatINR(computed.subTotal)} />
-                <Row label="Discount" value={`- ${formatINR(computed.discountAmt)}`} />
-                <Row label={`GST @ ${computed.gstPercent}%`} value={formatINR(computed.gstAmt)} />
-                <div className="mt-2 border-t pt-2">
-                  <Row label="Grand Total" value={formatINR(computed.grandTotal)} bold />
-                  <Row
-                    label="Received"
-                    value={`- ${formatINR(computed.amountPaid)}`}
-                    className="text-success"
-                  />
-                  <Row
-                    label="Balance Due"
-                    value={formatINR(computed.balanceDue)}
-                    bold
-                    className="text-primary"
-                  />
+              {/* ── Summary card ── */}
+              <div className="overflow-hidden rounded-xl border bg-muted/30">
+                {/* Line items */}
+                <div className="space-y-1 px-4 pt-4 pb-3 text-sm">
+                  <Row label="Sub Total" value={formatINR(computed.subTotal)} />
+                  <Row label="Discount" value={`- ${formatINR(computed.discountAmt)}`} />
+                  <Row label={`GST @ ${computed.gstPercent}%`} value={formatINR(computed.gstAmt)} />
+                </div>
+
+                {/* Grand Total — centred, prominent */}
+                <div className="border-t border-b bg-background px-4 py-3 text-center">
+                  <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Grand Total
+                  </div>
+                  <div className="mt-0.5 text-2xl font-bold tracking-tight text-foreground">
+                    {formatINR(computed.grandTotal)}
+                  </div>
+                </div>
+
+                {/* Received + Balance Due */}
+                <div className="grid grid-cols-2 divide-x text-center text-sm">
+                  <div className="px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Received
+                    </div>
+                    <div className="mt-0.5 font-semibold text-emerald-600">
+                      {formatINR(computed.amountPaid)}
+                    </div>
+                  </div>
+                  <div className="px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Balance Due
+                    </div>
+                    <div className="mt-0.5 font-bold text-primary">
+                      {formatINR(computed.balanceDue)}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div>
@@ -382,51 +402,98 @@ export function InvoiceEditor({
             <CardContent className="p-0">
               {payments.length === 0 ? (
                 <div className="p-6 text-sm text-muted-foreground">
-                  No payments recorded yet. Use "Record Payment" for advances and installments — the
-                  bill status updates automatically.
+                  No payments recorded yet. Use "Record Payment" for advances and
+                  installments — the bill status updates automatically.
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Note</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="w-10" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* ── Mobile: card list ── */}
+                  <div className="divide-y sm:hidden">
                     {payments.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell>{formatDate(p.date)}</TableCell>
-                        <TableCell>{p.mode}</TableCell>
-                        <TableCell className="max-w-[160px] truncate text-muted-foreground">
-                          {p.note || "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatINR(p.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              if (confirm("Remove this payment entry?")) {
-                                const next = payments.filter((x) => x.id !== p.id);
-                                setPayments(next);
-                                if (initial) saveMut.mutate(next);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                      <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-medium text-foreground">
+                              {formatDate(p.date)}
+                            </span>
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                              {p.mode}
+                            </span>
+                          </div>
+                          {p.note && (
+                            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {p.note}
+                            </div>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-sm font-semibold text-foreground">
+                            {formatINR(p.amount)}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => {
+                            if (confirm("Remove this payment entry?")) {
+                              const next = payments.filter((x) => x.id !== p.id);
+                              setPayments(next);
+                              if (initial) saveMut.mutate(next);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* ── Desktop: table ── */}
+                  <div className="hidden sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Mode</TableHead>
+                          <TableHead>Note</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead className="w-10" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {payments.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell>{formatDate(p.date)}</TableCell>
+                            <TableCell>{p.mode}</TableCell>
+                            <TableCell className="max-w-[160px] truncate text-muted-foreground">
+                              {p.note || "—"}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatINR(p.amount)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  if (confirm("Remove this payment entry?")) {
+                                    const next = payments.filter((x) => x.id !== p.id);
+                                    setPayments(next);
+                                    if (initial) saveMut.mutate(next);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
               {payments.length > 0 && (
                 <div className="border-t px-4 py-3 text-sm">
@@ -435,8 +502,7 @@ export function InvoiceEditor({
                     {formatINR(computed.amountPaid)}
                   </span>
                   <span className="text-muted-foreground">
-                    {" "}
-                    of {formatINR(computed.grandTotal)} —{" "}
+                    {" "}of {formatINR(computed.grandTotal)} —{" "}
                   </span>
                   <span className="font-semibold text-primary">
                     {formatINR(computed.balanceDue)} due

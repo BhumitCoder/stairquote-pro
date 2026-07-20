@@ -539,7 +539,7 @@ function AuthedLayout() {
         {/* Scrollable content — top padding on mobile clears the fixed header,
             extra bottom padding clears the bottom nav. */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto pt-[calc(env(safe-area-inset-top,0px)_+_60px)] md:pt-0">
-          <div className="px-4 py-5 pb-24 md:px-8 md:py-8 md:pb-8">
+          <div className="px-4 py-5 pb-[calc(5rem_+_env(safe-area-inset-bottom,0px))] md:px-8 md:py-8 md:pb-8">
             <Outlet />
           </div>
         </main>

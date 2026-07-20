@@ -107,7 +107,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quotePrefix: "Q",
   invoicePrefix: "INV",
   docTitle: "Estimate",
-  docFont: "playfair",
+  docFont: "samsung-one",
   loadingNotice: "LOADING, UNLOADING & TRANSPORTATION EXTRA AS PER ACTUAL.",
   dropdowns: {
     stairTypes: [

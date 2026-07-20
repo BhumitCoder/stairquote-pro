@@ -254,28 +254,36 @@ function ClientProfile() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{quotes.length}</div>
+            <div className="truncate text-lg font-bold sm:text-xl md:text-2xl">
+              {quotes.length}
+            </div>
             <div className="text-xs text-muted-foreground">Total Quotations</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{formatINR(totalValue)}</div>
+            <div className="truncate text-lg font-bold sm:text-xl md:text-2xl">
+              {formatINR(totalValue)}
+            </div>
             <div className="text-xs text-muted-foreground">Quoted Value</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-success">{formatINR(totalBilled)}</div>
+            <div className="truncate text-lg font-bold text-success sm:text-xl md:text-2xl">
+              {formatINR(totalBilled)}
+            </div>
             <div className="text-xs text-muted-foreground">Billed</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-primary">{formatINR(totalOutstanding)}</div>
+            <div className="truncate text-lg font-bold text-primary sm:text-xl md:text-2xl">
+              {formatINR(totalOutstanding)}
+            </div>
             <div className="text-xs text-muted-foreground">Outstanding</div>
           </CardContent>
         </Card>

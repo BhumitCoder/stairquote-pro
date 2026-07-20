@@ -18,6 +18,16 @@ const SCALE = 3; // capture scale → 2460px wide ≈ 290 DPI on A4
 const PAD_TOP_MM = 10; // top margin on continuation pages
 const PAD_BOTTOM_MM = 9; // breathing room kept at the bottom of every page
 
+// Mobile browsers (mobile Safari in particular) enforce much stricter canvas
+// size/memory ceilings than desktop — historically as low as ~4096px on a
+// single dimension. The whole document is captured as ONE tall canvas before
+// being sliced into pages, so a long document at full SCALE can land right at
+// that ceiling; content near the bottom (signatures/stamp) is what silently
+// gets clipped or corrupted first. We detect this ahead of time and back off
+// the capture scale just enough to stay safely under the limit, rather than
+// always assuming desktop-level headroom.
+const MAX_CANVAS_DIMENSION = 4096;
+
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
   try {
     const img = new Image();
@@ -84,8 +94,15 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     // older browsers — proceed anyway
   }
 
+  const rect = el.getBoundingClientRect();
+  const safeScale = Math.min(
+    SCALE,
+    MAX_CANVAS_DIMENSION / Math.max(rect.width, 1),
+    MAX_CANVAS_DIMENSION / Math.max(rect.height, 1),
+  );
+
   const canvas = await html2canvas(el, {
-    scale: SCALE,
+    scale: safeScale,
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,

@@ -425,20 +425,20 @@ export function QuotationPreview({
       {/* ── Signatures + thank-you + footer — one unbreakable block ── */}
       <div data-block>
         <div className="relative z-10 px-8 pt-8 sm:px-10">
-          <div className="flex items-end justify-between gap-6 text-[11px]">
-            <div className="flex w-40 flex-col items-center sm:w-52">
+          <div className="flex items-end justify-between gap-4 text-[11px]">
+            <div className="flex flex-1 flex-col items-center">
               <div
-                className="w-full border-t pt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em]"
+                className="w-full border-t pt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em]"
                 style={{ borderColor: GRAY, color: GRAY }}
               >
                 Customer Signature
               </div>
             </div>
 
-            <div className="flex w-40 flex-col items-center sm:w-52">
+            <div className="flex flex-shrink-0 flex-col items-center" style={{ minWidth: 140, maxWidth: 220 }}>
               <div
-                className="text-center text-[10px] font-semibold uppercase tracking-[0.18em]"
-                style={{ color: INK }}
+                className="w-full text-center text-[9px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
               >
                 For {settings.company.name}
               </div>
@@ -447,15 +447,15 @@ export function QuotationPreview({
                   <ContainImage
                     src={settings.company.stampUrl}
                     alt="Company stamp"
-                    boxWidth={110}
-                    boxHeight={80}
+                    boxWidth={120}
+                    boxHeight={90}
                   />
                 </div>
               ) : (
-                <div className="h-[86px]" />
+                <div className="h-[96px]" />
               )}
               <div
-                className="w-full border-t pt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em]"
+                className="w-full border-t pt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em]"
                 style={{ borderColor: GRAY, color: GRAY }}
               >
                 Authorized Signatory

@@ -19,14 +19,18 @@ const PAD_TOP_MM = 10; // top margin on continuation pages
 const PAD_BOTTOM_MM = 9; // breathing room kept at the bottom of every page
 
 // Mobile browsers (mobile Safari in particular) enforce much stricter canvas
-// size/memory ceilings than desktop — historically as low as ~4096px on a
-// single dimension. The whole document is captured as ONE tall canvas before
-// being sliced into pages, so a long document at full SCALE can land right at
-// that ceiling; content near the bottom (signatures/stamp) is what silently
-// gets clipped or corrupted first. We detect this ahead of time and back off
-// the capture scale just enough to stay safely under the limit, rather than
-// always assuming desktop-level headroom.
-const MAX_CANVAS_DIMENSION = 4096;
+// size/memory ceilings than desktop. Two separate limits apply:
+//   • Single-dimension cap: historically as low as 2048 px on older iOS,
+//     4096 px on modern iOS/Android.
+//   • Total-area cap: iOS Safari caps canvas memory at ~16 MP; older/budget
+//     Android devices can be as low as ~8 MP.
+// The whole document is captured as ONE tall canvas before being sliced into
+// pages, so a long document can hit either ceiling; content near the bottom
+// (signatures/stamp) is what silently gets clipped or corrupted first.
+// We use 3000 px as the single-dimension cap (well below 4096) and 9 MP as
+// the area cap so both constraints are satisfied across all common devices.
+const MAX_CANVAS_DIMENSION = 3000;
+const MAX_CANVAS_AREA = 9_000_000; // 9 MP — safe for old + new mobile
 
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
   try {
@@ -95,10 +99,13 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
   }
 
   const rect = el.getBoundingClientRect();
+  const rw = Math.max(rect.width, 1);
+  const rh = Math.max(rect.height, 1);
   const safeScale = Math.min(
     SCALE,
-    MAX_CANVAS_DIMENSION / Math.max(rect.width, 1),
-    MAX_CANVAS_DIMENSION / Math.max(rect.height, 1),
+    MAX_CANVAS_DIMENSION / rw,
+    MAX_CANVAS_DIMENSION / rh,
+    Math.sqrt(MAX_CANVAS_AREA / (rw * rh)), // total-area cap
   );
 
   const canvas = await html2canvas(el, {
@@ -238,6 +245,37 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     if (isLastPage && closingTop != null && closingTop >= sy) {
       // Final page: content at the top, closing block pinned to the bottom edge.
       const topH = closingTop - sy;
+      const availH = pageHpx - offsetY - topH;
+
+      if (topH > 0 && closingH > availH) {
+        // The closing block doesn't fit alongside the remaining content on this
+        // page (would overflow and cut off the last line / red rule). Finish
+        // the current page with just the top content, then add a dedicated
+        // page for the closing block so nothing is clipped.
+        ctx.drawImage(canvas, 0, sy, w, topH, 0, offsetY, w, topH);
+        drawWatermark(ctx);
+        if (pageIndex > 0) doc.addPage();
+        doc.addImage(page.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
+
+        // New page — closing block pinned to the bottom.
+        const closingPage = document.createElement("canvas");
+        closingPage.width = w;
+        closingPage.height = pageHpx;
+        const cCtx = closingPage.getContext("2d");
+        if (cCtx) {
+          cCtx.fillStyle = "#ffffff";
+          cCtx.fillRect(0, 0, w, pageHpx);
+          // Pin closing block to the bottom; if it's taller than the page,
+          // start from padTop so at least the top is visible.
+          const cY = Math.max(pageHpx - closingH, padTop);
+          cCtx.drawImage(canvas, 0, closingTop, w, closingH, 0, cY, w, closingH);
+          drawWatermark(cCtx);
+          doc.addPage();
+          doc.addImage(closingPage.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
+        }
+        break; // done
+      }
+
       if (topH > 0) ctx.drawImage(canvas, 0, sy, w, topH, 0, offsetY, w, topH);
       // Safety: if topH == 0 the closing block is the only content on this page
       // (can happen via whiteScanCut). Pin-to-bottom would leave a full blank

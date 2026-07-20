@@ -333,7 +333,39 @@ export async function renderPreviewToPdf(element: ReactElement): Promise<Blob> {
       requestAnimationFrame(() => requestAnimationFrame(() => res()));
     });
     await waitForImages(host);
-    // Images may change layout — let it settle once more.
+
+    // ── Fix 1: watermark ────────────────────────────────────────────────────
+    // Hide the DOM watermark NOW (in the live element, before html2canvas
+    // clones it). Relying solely on onclone is fragile — the clone callback
+    // fires after the clone is built but the mutation may not propagate in
+    // time on some mobile WebKit builds. Hiding it here is the reliable path.
+    host.querySelectorAll<HTMLElement>("[data-watermark]").forEach((n) => {
+      n.style.display = "none";
+    });
+
+    // ── Fix 2: ContainImage explicit dimensions ─────────────────────────────
+    // html2canvas ignores CSS `max-width` / `max-height` on <img> elements
+    // and renders at natural resolution. ContainImage sets explicit pixel
+    // dimensions via a React state update after onLoad, but that state flush
+    // may not complete before we reach html2canvas (especially on slow mobile
+    // CPUs). We apply the same contain-math directly to the live DOM here so
+    // the clone always sees explicit width/height, not max-width/max-height.
+    host.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      if (img.style.width && img.style.height) return; // already set by React
+      const parent = img.parentElement;
+      if (!parent) return;
+      const pw = parent.clientWidth;
+      const ph = parent.clientHeight;
+      if (!pw || !ph) return;
+      const ratio = Math.min(pw / img.naturalWidth, ph / img.naturalHeight);
+      img.style.width = `${Math.round(img.naturalWidth * ratio)}px`;
+      img.style.height = `${Math.round(img.naturalHeight * ratio)}px`;
+      img.style.maxWidth = "";
+      img.style.maxHeight = "";
+    });
+
+    // Let layout settle after the dimension fixes above.
     await new Promise<void>((res) => requestAnimationFrame(() => res()));
 
     const target = host.querySelector<HTMLElement>("[data-pdf-root]");

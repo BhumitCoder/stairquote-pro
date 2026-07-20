@@ -194,7 +194,13 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     if (end < canvas.height) {
       // Prefer a break BETWEEN blocks: the lowest block top that fits this page
       // (but never leave a page less than a third full).
-      const candidates = blockTops.filter((t) => t > sy + capacity * 0.33 && t <= end);
+      // IMPORTANT: Never break at closingTop itself — that would isolate the
+      // closing block alone on the final page and create a blank-page gap when
+      // it is pinned to the bottom. Keeping the closing block anchored to
+      // whatever non-closing content precedes it on the final page is correct.
+      const candidates = blockTops.filter(
+        (t) => t > sy + capacity * 0.33 && t <= end && t !== closingTop,
+      );
       if (candidates.length > 0) {
         end = candidates[candidates.length - 1];
       } else if (srcCtx) {
@@ -216,7 +222,11 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
       // Final page: content at the top, closing block pinned to the bottom edge.
       const topH = closingTop - sy;
       if (topH > 0) ctx.drawImage(canvas, 0, sy, w, topH, 0, offsetY, w, topH);
-      const closeY = Math.max(pageHpx - closingH, offsetY + topH);
+      // Safety: if topH == 0 the closing block is the only content on this page
+      // (can happen via whiteScanCut). Pin-to-bottom would leave a full blank
+      // page above it, so instead draw it naturally from the top margin.
+      const closeY =
+        topH > 0 ? Math.max(pageHpx - closingH, offsetY + topH) : offsetY;
       ctx.drawImage(canvas, 0, closingTop, w, closingH, 0, closeY, w, closingH);
     } else {
       ctx.drawImage(canvas, 0, sy, w, sliceH, 0, offsetY, w, sliceH);

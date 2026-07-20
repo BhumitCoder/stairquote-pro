@@ -48,6 +48,8 @@ import {
   Loader2,
   ReceiptText,
   GitBranch,
+  CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -429,139 +431,176 @@ export function QuotationEditor({
       )}
 
       {step === 4 && computed && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 4 — Review &amp; Send</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-sm text-muted-foreground">Client</div>
-                <div className="font-semibold">{client?.name}</div>
-                {client?.org && <div className="text-sm">{client.org}</div>}
-                <div className="text-xs text-muted-foreground">
-                  {[client?.phone, client?.email].filter(Boolean).join(" • ")}
+        <div className="space-y-3">
+
+          {/* ── Header banner ── */}
+          <div className="flex items-center gap-3 rounded-2xl border bg-gradient-to-r from-primary/8 via-primary/4 to-transparent px-5 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/12 ring-1 ring-primary/20">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Step 4 of 4
+              </div>
+              <div className="text-base font-bold leading-tight text-foreground">
+                Review &amp; Send
+              </div>
+            </div>
+          </div>
+
+          {/* ── Client + Grand Total card ── */}
+          <div className="rounded-2xl border bg-card shadow-sm">
+            <div className="flex items-center justify-between gap-4 px-5 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold uppercase text-primary ring-1 ring-primary/15">
+                  {client?.name?.[0] ?? "C"}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold leading-tight text-foreground">
+                    {client?.name}
+                  </div>
+                  {client?.org && (
+                    <div className="truncate text-sm text-muted-foreground">{client.org}</div>
+                  )}
+                  {(client?.phone || client?.email) && (
+                    <div className="truncate text-xs text-muted-foreground">
+                      {[client?.phone, client?.email].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground">Grand Total</div>
+              <div className="shrink-0 text-right">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Grand Total
+                </div>
                 <div className="text-2xl font-bold text-primary">
                   {formatINR(computed.grandTotal)}
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Revision history — shown on both originals and revisions */}
-            {isRevision && parentQuote && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/50 bg-amber-50/60 px-4 py-2.5 text-sm dark:bg-amber-900/20">
-                <GitBranch className="h-4 w-4 shrink-0 text-amber-600" />
-                <span className="text-amber-800 dark:text-amber-300">
-                  This is Revision {initial.revision} of
-                </span>
-                <Link
-                  to="/quotations/$id"
-                  params={{ id: parentQuote.id }}
-                  className="font-semibold text-amber-700 hover:underline dark:text-amber-400"
-                >
-                  {parentQuote.number}
-                </Link>
-                <span className="text-muted-foreground">
-                  (original — {parentQuote.status})
-                </span>
+          {/* ── Revision info (this is a revision) ── */}
+          {isRevision && parentQuote && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-900/20">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                <GitBranch className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
               </div>
-            )}
+              <span className="text-sm text-amber-800 dark:text-amber-300">
+                Revision <span className="font-semibold">{initial.revision}</span> of
+              </span>
+              <Link
+                to="/quotations/$id"
+                params={{ id: parentQuote.id }}
+                className="rounded-md border border-amber-300 bg-white px-2.5 py-0.5 text-sm font-semibold text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:bg-transparent dark:text-amber-400"
+              >
+                {parentQuote.number}
+              </Link>
+              <span className="text-xs text-muted-foreground">
+                original · {parentQuote.status}
+              </span>
+            </div>
+          )}
 
-            {isOriginal && revisions.length > 0 && (
-              <div className="rounded-lg border border-amber-300/50 bg-amber-50/60 px-4 py-3 dark:bg-amber-900/20">
-                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-300">
-                  <GitBranch className="h-4 w-4" />
-                  {revisions.length} Revision{revisions.length > 1 ? "s" : ""} of this quotation
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {revisions.map((r) => (
-                    <Link
-                      key={r.id}
-                      to="/quotations/$id"
-                      params={{ id: r.id }}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1 text-sm font-semibold text-amber-700 hover:bg-amber-50 dark:bg-transparent dark:text-amber-400"
-                    >
-                      {r.number}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        · {r.status}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+          {/* ── Revisions list (this is the original) ── */}
+          {isOriginal && revisions.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-900/20">
+              <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                <GitBranch className="h-4 w-4" />
+                {revisions.length} Revision{revisions.length > 1 ? "s" : ""}
               </div>
-            )}
-
-            {linkedBills.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-2.5 text-sm">
-                <ReceiptText className="h-4 w-4 shrink-0 text-success" />
-                <span>
-                  {linkedBills.length === 1 ? "A bill has" : `${linkedBills.length} bills have`}{" "}
-                  already been created from this quotation:
-                </span>
-                {linkedBills.map((b) => (
+              <div className="flex flex-wrap gap-2">
+                {revisions.map((r) => (
                   <Link
-                    key={b.id}
-                    to="/bills/$id"
-                    params={{ id: b.id }}
-                    className="font-semibold text-success hover:underline"
+                    key={r.id}
+                    to="/quotations/$id"
+                    params={{ id: r.id }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1 text-sm font-semibold text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:bg-transparent dark:text-amber-400"
                   >
-                    {b.number}
+                    {r.number}
+                    <span className="text-[11px] font-normal text-muted-foreground">
+                      {r.status}
+                    </span>
                   </Link>
                 ))}
               </div>
-            )}
+            </div>
+          )}
 
-            <div>
-              <div className="mb-2 text-sm font-medium text-muted-foreground">
-                Quotation Preview
+          {/* ── Linked bills ── */}
+          {linkedBills.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-800/40 dark:bg-emerald-900/20">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+                <ReceiptText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
+              <span className="text-sm text-emerald-800 dark:text-emerald-300">
+                {linkedBills.length === 1 ? "Bill created:" : `${linkedBills.length} bills created:`}
+              </span>
+              {linkedBills.map((b) => (
+                <Link
+                  key={b.id}
+                  to="/bills/$id"
+                  params={{ id: b.id }}
+                  className="rounded-md border border-emerald-300 bg-white px-2.5 py-0.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-400"
+                >
+                  {b.number}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* ── Quotation preview ── */}
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <div className="flex items-center gap-2.5 border-b bg-muted/40 px-5 py-3">
+              <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">Quotation Preview</span>
+              <span className="ml-auto rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {computed.number}
+              </span>
+            </div>
+            <div className="p-3">
               <ScaledDocumentPreview>
                 <QuotationPreview quote={computed} settings={settings} />
               </ScaledDocumentPreview>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 sm:flex sm:flex-wrap sm:justify-end">
-              {initial && (
-                <Button
-                  variant="outline"
-                  className="col-span-1 border-amber-400/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-400"
-                  disabled={actionBusy}
-                  onClick={() => revMut.mutate()}
-                  title="Create a revised copy of this quotation (e.g. Q-00001/1)"
-                >
-                  {revMut.isPending ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <GitBranch className="mr-1 h-4 w-4" />
-                  )}
-                  {revMut.isPending ? "Creating…" : "Create Revision"}
-                </Button>
+          {/* ── Action buttons ── */}
+          <div className="rounded-2xl border bg-card px-4 py-4 shadow-sm">
+            {/* Primary action */}
+            <Button
+              className="w-full rounded-xl py-5 text-sm font-semibold shadow-sm"
+              onClick={handleDownloadPdf}
+              disabled={actionBusy}
+            >
+              {pdfBusy ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
               )}
-              {initial && (
+              {pdfBusy ? "Preparing PDF…" : "Download PDF"}
+            </Button>
+
+            {/* Secondary actions */}
+            <div className="mt-2.5 grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="rounded-xl text-sm"
+                onClick={() => saveMut.mutate()}
+                disabled={actionBusy}
+              >
+                {saveMut.isPending && !pdfBusy ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {saveMut.isPending && !pdfBusy ? "Saving…" : "Save Draft"}
+              </Button>
+
+              {initial ? (
                 <Button
                   variant="outline"
-                  className="col-span-1"
-                  disabled={actionBusy}
-                  onClick={() => {
-                    if (confirm("Delete this quotation?")) delMut.mutate();
-                  }}
-                >
-                  {delMut.isPending ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="mr-1 h-4 w-4" />
-                  )}
-                  {delMut.isPending ? "Deleting…" : "Delete"}
-                </Button>
-              )}
-              {initial && (
-                <Button
-                  variant="outline"
-                  className="col-span-1 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                  className="rounded-xl border-primary/30 text-sm text-primary hover:bg-primary/8 hover:text-primary"
                   onClick={() => {
                     if (
                       linkedBills.length > 0 &&
@@ -573,38 +612,53 @@ export function QuotationEditor({
                     nav({ to: "/bills/new", search: { quote: initial.id } });
                   }}
                 >
-                  <ReceiptText className="mr-1 h-4 w-4" />
-                  {linkedBills.length > 0 ? "Create Another Bill" : "Create Bill"}
+                  <ReceiptText className="mr-1.5 h-3.5 w-3.5" />
+                  {linkedBills.length > 0 ? "New Bill" : "Create Bill"}
                 </Button>
+              ) : (
+                <div />
               )}
-              <Button
-                variant="outline"
-                className="col-span-1"
-                onClick={() => saveMut.mutate()}
-                disabled={actionBusy}
-              >
-                {saveMut.isPending && !pdfBusy ? (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-1 h-4 w-4" />
-                )}
-                {saveMut.isPending && !pdfBusy ? "Saving…" : "Save Draft"}
-              </Button>
-              <Button
-                className={initial ? "col-span-2 sm:col-span-1" : "col-span-1"}
-                onClick={handleDownloadPdf}
-                disabled={actionBusy}
-              >
-                {pdfBusy ? (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-1 h-4 w-4" />
-                )}
-                {pdfBusy ? "Preparing…" : "Download PDF"}
-              </Button>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Tertiary actions */}
+            {initial && (
+              <div className="mt-2 flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                  disabled={actionBusy}
+                  onClick={() => revMut.mutate()}
+                  title="Create a revised copy of this quotation"
+                >
+                  {revMut.isPending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <GitBranch className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {revMut.isPending ? "Creating…" : "Create Revision"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs text-destructive hover:bg-destructive/8 hover:text-destructive"
+                  disabled={actionBusy}
+                  onClick={() => {
+                    if (confirm("Delete this quotation?")) delMut.mutate();
+                  }}
+                >
+                  {delMut.isPending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {delMut.isPending ? "Deleting…" : "Delete"}
+                </Button>
+              </div>
+            )}
+          </div>
+
+        </div>
       )}
     </div>
   );

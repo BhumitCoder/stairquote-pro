@@ -458,10 +458,11 @@ export function InvoiceEditor({
             <ScaledDocumentPreview>
               <QuotationPreview quote={computed} settings={settings} />
             </ScaledDocumentPreview>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               {initial && (
                 <Button
                   variant="outline"
+                  className="col-span-1"
                   disabled={actionBusy}
                   onClick={() => {
                     if (confirm("Delete this bill? Recorded payments will be lost."))
@@ -478,6 +479,7 @@ export function InvoiceEditor({
               )}
               <Button
                 variant="outline"
+                className="col-span-1"
                 onClick={() => saveMut.mutate(undefined)}
                 disabled={actionBusy}
               >
@@ -488,7 +490,11 @@ export function InvoiceEditor({
                 )}
                 {saveMut.isPending && !pdfBusy ? "Saving…" : "Save Bill"}
               </Button>
-              <Button onClick={handleDownloadPdf} disabled={actionBusy}>
+              <Button
+                className={initial ? "col-span-2 sm:col-span-1" : "col-span-1"}
+                onClick={handleDownloadPdf}
+                disabled={actionBusy}
+              >
                 {pdfBusy ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 ) : (

@@ -305,7 +305,7 @@ function MoreSheet({
       />
       {/* Sheet */}
       <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-background shadow-2xl md:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom, 8px), 8px)" }}
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
@@ -378,7 +378,7 @@ function BottomNav({
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur-md md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom, 8px), 8px)" }}
     >
       <div className="flex h-16 items-center justify-around px-2">
         {/* Home */}
@@ -524,7 +524,7 @@ function AuthedLayout() {
         {/* Mobile top bar */}
         <header
           className="flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:hidden"
-          style={{ paddingTop: "env(safe-area-inset-top)" }}
+          style={{ paddingTop: "max(env(safe-area-inset-top, 12px), 12px)" }}
         >
           <img src="/logo.png" alt="Vastu Stair Designer" className="h-8 w-auto object-contain" />
           <Link

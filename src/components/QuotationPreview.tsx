@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AppSettings, Invoice, Quotation } from "@/lib/types";
 import { formatINR, formatNum, formatDate } from "@/lib/format";
 import { getDocFontCss } from "@/lib/settings-defaults";
@@ -11,6 +12,56 @@ const INK = "#1B1B23";
 const BODY = "#4A4A55";
 const GRAY = "#8A8DA0";
 const HAIR = "#EAEAF0";
+
+// html2canvas does not reliably honor `object-fit` on <img> — it can paint
+// the source at its raw natural resolution instead of the CSS-fitted size,
+// which bled the stamp graphic far past its box in the exported PDF. We
+// sidestep that entirely by measuring the image ourselves on load and
+// setting an explicit pixel width/height (equivalent to object-fit: contain,
+// computed in JS instead of CSS) so there is nothing left for html2canvas
+// to get wrong.
+function ContainImage({
+  src,
+  alt,
+  boxWidth,
+  boxHeight,
+}: {
+  src: string;
+  alt: string;
+  boxWidth: number;
+  boxHeight: number;
+}) {
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+
+  return (
+    <div
+      style={{
+        width: boxWidth,
+        height: boxHeight,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        style={
+          size
+            ? { width: size.w, height: size.h }
+            : { maxWidth: boxWidth, maxHeight: boxHeight }
+        }
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          if (!img.naturalWidth || !img.naturalHeight) return;
+          const ratio = Math.min(boxWidth / img.naturalWidth, boxHeight / img.naturalHeight);
+          setSize({ w: img.naturalWidth * ratio, h: img.naturalHeight * ratio });
+        }}
+      />
+    </div>
+  );
+}
 
 export function QuotationPreview({
   quote,
@@ -392,11 +443,12 @@ export function QuotationPreview({
                 For {settings.company.name}
               </div>
               {settings.company.stampUrl ? (
-                <div className="my-1.5 h-20 w-[110px]">
-                  <img
+                <div className="my-1.5">
+                  <ContainImage
                     src={settings.company.stampUrl}
                     alt="Company stamp"
-                    className="h-full w-full object-contain"
+                    boxWidth={110}
+                    boxHeight={80}
                   />
                 </div>
               ) : (

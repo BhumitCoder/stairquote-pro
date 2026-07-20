@@ -521,11 +521,11 @@ export function QuotationEditor({
               </ScaledDocumentPreview>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <div className="grid grid-cols-2 gap-2 pt-2 sm:flex sm:flex-wrap sm:justify-end">
               {initial && (
                 <Button
                   variant="outline"
-                  className="border-amber-400/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-400"
+                  className="col-span-1 border-amber-400/60 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-400"
                   disabled={actionBusy}
                   onClick={() => revMut.mutate()}
                   title="Create a revised copy of this quotation (e.g. Q-00001/1)"
@@ -541,6 +541,7 @@ export function QuotationEditor({
               {initial && (
                 <Button
                   variant="outline"
+                  className="col-span-1"
                   disabled={actionBusy}
                   onClick={() => {
                     if (confirm("Delete this quotation?")) delMut.mutate();
@@ -557,7 +558,7 @@ export function QuotationEditor({
               {initial && (
                 <Button
                   variant="outline"
-                  className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                  className="col-span-1 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
                   onClick={() => {
                     if (
                       linkedBills.length > 0 &&
@@ -573,7 +574,12 @@ export function QuotationEditor({
                   {linkedBills.length > 0 ? "Create Another Bill" : "Create Bill"}
                 </Button>
               )}
-              <Button variant="outline" onClick={() => saveMut.mutate()} disabled={actionBusy}>
+              <Button
+                variant="outline"
+                className="col-span-1"
+                onClick={() => saveMut.mutate()}
+                disabled={actionBusy}
+              >
                 {saveMut.isPending && !pdfBusy ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 ) : (
@@ -581,7 +587,11 @@ export function QuotationEditor({
                 )}
                 {saveMut.isPending && !pdfBusy ? "Saving…" : "Save Draft"}
               </Button>
-              <Button onClick={handleDownloadPdf} disabled={actionBusy}>
+              <Button
+                className={initial ? "col-span-2 sm:col-span-1" : "col-span-1"}
+                onClick={handleDownloadPdf}
+                disabled={actionBusy}
+              >
                 {pdfBusy ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 ) : (

@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { QuotationPreview } from "@/components/QuotationPreview";
+import { ScaledDocumentPreview } from "@/components/ScaledDocumentPreview";
 import { ClientDialog } from "@/routes/_authenticated.clients.index";
 import { formatINR, formatNum, toDateInputValue, fromDateInputValue } from "@/lib/format";
 import {
@@ -515,14 +516,9 @@ export function QuotationEditor({
               <div className="mb-2 text-sm font-medium text-muted-foreground">
                 Quotation Preview
               </div>
-              {/* On mobile: horizontal-scroll so the A4 document renders at full
-                  fidelity (same layout as desktop/PDF) instead of wrapping
-                  into a distorted narrow column. */}
-              <div className="overflow-x-auto rounded-lg border">
-                <div className="min-w-[680px]">
-                  <QuotationPreview quote={computed} settings={settings} />
-                </div>
-              </div>
+              <ScaledDocumentPreview>
+                <QuotationPreview quote={computed} settings={settings} />
+              </ScaledDocumentPreview>
             </div>
 
             <div className="flex flex-wrap justify-end gap-2 pt-2">

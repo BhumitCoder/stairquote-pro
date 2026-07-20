@@ -326,65 +326,115 @@ function ClientProfile() {
                   No quotations match your search.
                 </div>
               ) : (
-                <Table className="table-fixed">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[18%]">Quote No.</TableHead>
-                      <TableHead className="w-[24%]">Date</TableHead>
-                      <TableHead className="w-[14%] text-center">Items</TableHead>
-                      <TableHead className="w-[24%] text-right">Amount</TableHead>
-                      <TableHead className="w-[20%] pl-8">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* ── Mobile card list ── */}
+                  <div className="space-y-2 p-4 md:hidden">
                     {filteredQuotes.map((q) => (
-                      <TableRow key={q.id}>
-                        <TableCell>
-                          <Link
-                            to="/quotations/$id"
-                            params={{ id: q.id }}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {q.number}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(q.date)}
-                        </TableCell>
-                        <TableCell className="text-center text-muted-foreground">
-                          {q.totals.itemCount}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatINR(q.grandTotal)}
-                        </TableCell>
-                        <TableCell className="pl-8">
-                          <Select
-                            value={q.status}
-                            disabled={statusMut.isPending}
-                            onValueChange={(v) =>
-                              statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
-                            }
-                          >
-                            <SelectTrigger className="h-8 w-[110px] shrink-0">
-                              <SelectValue>
-                                <StatusBadge status={q.status} />
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map(
-                                (s) => (
-                                  <SelectItem key={s} value={s}>
-                                    {s}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
+                      <Card key={q.id} className="p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              to="/quotations/$id"
+                              params={{ id: q.id }}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {q.number}
+                            </Link>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {formatDate(q.date)} · {q.totals.itemCount} items
+                            </div>
+                          </div>
+                          <div className="shrink-0 font-semibold">{formatINR(q.grandTotal)}</div>
+                        </div>
+                        <Select
+                          value={q.status}
+                          disabled={statusMut.isPending}
+                          onValueChange={(v) =>
+                            statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
+                          }
+                        >
+                          <SelectTrigger className="mt-3 h-8 w-full">
+                            <SelectValue>
+                              <StatusBadge status={q.status} />
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map(
+                              (s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </Card>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* ── Desktop table ── */}
+                  <div className="hidden md:block">
+                    <Table className="table-fixed">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[18%]">Quote No.</TableHead>
+                          <TableHead className="w-[24%]">Date</TableHead>
+                          <TableHead className="w-[14%] text-center">Items</TableHead>
+                          <TableHead className="w-[24%] text-right">Amount</TableHead>
+                          <TableHead className="w-[20%] pl-8">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredQuotes.map((q) => (
+                          <TableRow key={q.id}>
+                            <TableCell>
+                              <Link
+                                to="/quotations/$id"
+                                params={{ id: q.id }}
+                                className="font-medium text-primary hover:underline"
+                              >
+                                {q.number}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(q.date)}
+                            </TableCell>
+                            <TableCell className="text-center text-muted-foreground">
+                              {q.totals.itemCount}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {formatINR(q.grandTotal)}
+                            </TableCell>
+                            <TableCell className="pl-8">
+                              <Select
+                                value={q.status}
+                                disabled={statusMut.isPending}
+                                onValueChange={(v) =>
+                                  statusMut.mutate({ quoteId: q.id, status: v as QuoteStatus })
+                                }
+                              >
+                                <SelectTrigger className="h-8 w-[110px] shrink-0">
+                                  <SelectValue>
+                                    <StatusBadge status={q.status} />
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map(
+                                    (s) => (
+                                      <SelectItem key={s} value={s}>
+                                        {s}
+                                      </SelectItem>
+                                    ),
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </TabsContent>
@@ -401,48 +451,94 @@ function ClientProfile() {
                   No bills match your search.
                 </div>
               ) : (
-                <Table className="table-fixed">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[15%]">Bill No.</TableHead>
-                      <TableHead className="w-[16%]">Date</TableHead>
-                      <TableHead className="w-[18%] text-right">Amount</TableHead>
-                      <TableHead className="w-[16%] text-right">Received</TableHead>
-                      <TableHead className="w-[18%] text-right">Balance</TableHead>
-                      <TableHead className="w-[17%] pl-8">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* ── Mobile card list ── */}
+                  <div className="space-y-2 p-4 md:hidden">
                     {filteredInvoices.map((inv) => (
-                      <TableRow key={inv.id}>
-                        <TableCell>
-                          <Link
-                            to="/bills/$id"
-                            params={{ id: inv.id }}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {inv.number}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(inv.date)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatINR(inv.grandTotal)}
-                        </TableCell>
-                        <TableCell className="text-right text-success">
-                          {formatINR(inv.amountPaid)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-primary">
-                          {formatINR(inv.balanceDue)}
-                        </TableCell>
-                        <TableCell className="pl-8">
-                          <StatusBadge status={inv.status} />
-                        </TableCell>
-                      </TableRow>
+                      <Card key={inv.id} className="p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              to="/bills/$id"
+                              params={{ id: inv.id }}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {inv.number}
+                            </Link>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {formatDate(inv.date)}
+                            </div>
+                          </div>
+                          <div className="shrink-0"><StatusBadge status={inv.status} /></div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <div className="text-muted-foreground">Amount</div>
+                            <div className="font-medium">{formatINR(inv.grandTotal)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Received</div>
+                            <div className="font-medium text-success">
+                              {formatINR(inv.amountPaid)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Balance</div>
+                            <div className="font-semibold text-primary">
+                              {formatINR(inv.balanceDue)}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* ── Desktop table ── */}
+                  <div className="hidden md:block">
+                    <Table className="table-fixed">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[15%]">Bill No.</TableHead>
+                          <TableHead className="w-[16%]">Date</TableHead>
+                          <TableHead className="w-[18%] text-right">Amount</TableHead>
+                          <TableHead className="w-[16%] text-right">Received</TableHead>
+                          <TableHead className="w-[18%] text-right">Balance</TableHead>
+                          <TableHead className="w-[17%] pl-8">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredInvoices.map((inv) => (
+                          <TableRow key={inv.id}>
+                            <TableCell>
+                              <Link
+                                to="/bills/$id"
+                                params={{ id: inv.id }}
+                                className="font-medium text-primary hover:underline"
+                              >
+                                {inv.number}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(inv.date)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatINR(inv.grandTotal)}
+                            </TableCell>
+                            <TableCell className="text-right text-success">
+                              {formatINR(inv.amountPaid)}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-primary">
+                              {formatINR(inv.balanceDue)}
+                            </TableCell>
+                            <TableCell className="pl-8">
+                              <StatusBadge status={inv.status} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </TabsContent>

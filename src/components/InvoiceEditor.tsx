@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { QuotationPreview } from "@/components/QuotationPreview";
+import { ScaledDocumentPreview } from "@/components/ScaledDocumentPreview";
 import { ItemEditor } from "@/components/QuotationEditor";
 import { formatINR, formatDate, toDateInputValue, fromDateInputValue } from "@/lib/format";
 import {
@@ -454,9 +455,9 @@ export function InvoiceEditor({
             <CardTitle className="text-base">Bill Preview</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="overflow-hidden rounded-lg border">
+            <ScaledDocumentPreview>
               <QuotationPreview quote={computed} settings={settings} />
-            </div>
+            </ScaledDocumentPreview>
             <div className="flex flex-wrap justify-end gap-2">
               {initial && (
                 <Button

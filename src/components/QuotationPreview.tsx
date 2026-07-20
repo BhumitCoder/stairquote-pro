@@ -392,11 +392,13 @@ export function QuotationPreview({
                 For {settings.company.name}
               </div>
               {settings.company.stampUrl ? (
-                <img
-                  src={settings.company.stampUrl}
-                  alt="Company stamp"
-                  className="my-1.5 h-20 w-auto max-w-[110px] object-contain"
-                />
+                <div className="my-1.5 h-20 w-[110px]">
+                  <img
+                    src={settings.company.stampUrl}
+                    alt="Company stamp"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
               ) : (
                 <div className="h-[86px]" />
               )}

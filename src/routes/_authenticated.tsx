@@ -521,9 +521,10 @@ function AuthedLayout() {
 
       {/* ── Main content ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile top bar */}
+        {/* Mobile top bar — fixed to the viewport so it can never scroll away,
+            regardless of how the surrounding layout handles overflow. */}
         <header
-          className="flex shrink-0 items-center justify-between border-b bg-background/95 px-4 pb-3 backdrop-blur md:hidden"
+          className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b bg-background/95 px-4 pb-3 backdrop-blur md:hidden"
           style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
         >
           <img src="/logo.png" alt="Vastu Stair Designer" className="h-8 w-auto object-contain" />
@@ -535,8 +536,9 @@ function AuthedLayout() {
           </Link>
         </header>
 
-        {/* Scrollable content — extra bottom padding on mobile for the bottom nav */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        {/* Scrollable content — top padding on mobile clears the fixed header,
+            extra bottom padding clears the bottom nav. */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto pt-[calc(env(safe-area-inset-top,0px)_+_60px)] md:pt-0">
           <div className="px-4 py-5 pb-24 md:px-8 md:py-8 md:pb-8">
             <Outlet />
           </div>

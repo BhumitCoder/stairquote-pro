@@ -205,7 +205,7 @@ export function InvoiceEditor({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="sticky -top-5 z-20 -mx-4 flex items-center justify-between gap-2 border-b bg-background/95 px-4 py-5 backdrop-blur md:static md:mx-0 md:border-none md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0">
         <Button variant="ghost" size="sm" onClick={() => nav({ to: "/bills" })}>
           <ArrowLeft className="mr-1 h-4 w-4" /> Back to Bills
         </Button>

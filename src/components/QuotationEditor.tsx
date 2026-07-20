@@ -227,37 +227,40 @@ export function QuotationEditor({
   // ============ STEP UI ============
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => nav({ to: "/" })}>
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back
-          </Button>
-          {initial?.revision && (
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-              Revision {initial.revision} of {initial.number.split("/")[0]}
-            </span>
-          )}
+      <div className="sticky -top-5 z-20 -mx-4 space-y-3 border-b bg-background/95 px-4 pb-3 pt-5 backdrop-blur md:static md:mx-0 md:space-y-4 md:border-none md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => nav({ to: "/" })}>
+              <ArrowLeft className="mr-1 h-4 w-4" /> Back
+            </Button>
+            {initial?.revision && (
+              <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                Rev {initial.revision} · {initial.number.split("/")[0]}
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {initial && (
+              <Select value={status} onValueChange={(v) => setStatus(v as QuoteStatus)}>
+                <SelectTrigger className="h-9 w-32">
+                  <SelectValue>
+                    <StatusBadge status={status} />
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {initial && <StatusBadge status={status} />}
-          {initial && (
-            <Select value={status} onValueChange={(v) => setStatus(v as QuoteStatus)}>
-              <SelectTrigger className="h-9 w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(["Draft", "Sent", "Accepted", "Rejected"] as QuoteStatus[]).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
 
-      <Stepper step={step} onChange={setStep} hasClient={!!client} hasItems={items.length > 0} />
+        <Stepper step={step} onChange={setStep} hasClient={!!client} hasItems={items.length > 0} />
+      </div>
 
       {step === 1 && (
         <Card>

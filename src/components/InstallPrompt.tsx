@@ -39,7 +39,7 @@ function wasDismissedRecently() {
 function dismiss() {
   try {
     localStorage.setItem(DISMISSED_KEY, String(Date.now()));
-  } catch {}
+  } catch { }
 }
 
 export function InstallPrompt() {

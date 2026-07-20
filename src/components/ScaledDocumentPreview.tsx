@@ -19,7 +19,7 @@ export function ScaledDocumentPreview({ children }: { children: React.ReactNode 
     if (!outer || !inner) return;
 
     const measure = () => {
-      setScale(Math.min(1, outer.clientWidth / DOC_WIDTH));
+      setScale(outer.clientWidth / DOC_WIDTH);
       setDocHeight(inner.scrollHeight);
     };
     measure();
@@ -31,7 +31,10 @@ export function ScaledDocumentPreview({ children }: { children: React.ReactNode 
   });
 
   return (
-    <div ref={outerRef} className="overflow-hidden rounded-lg border bg-muted/10">
+    <div
+      ref={outerRef}
+      className="mx-auto w-full max-w-[860px] overflow-hidden rounded-lg border bg-muted/10"
+    >
       <div style={{ height: docHeight * scale || undefined }}>
         <div
           ref={innerRef}

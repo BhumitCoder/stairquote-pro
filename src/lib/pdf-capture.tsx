@@ -100,7 +100,11 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
 
   const rect = el.getBoundingClientRect();
   const rw = Math.max(rect.width, 1);
-  const rh = Math.max(rect.height, 1);
+  // getBoundingClientRect().height can return 0 on mobile Safari for
+  // off-screen fixed elements — the CSS layout engine still assigns the
+  // correct height, but the visual-layer measurement is skipped.
+  // el.scrollHeight is a pure layout value and is always reliable.
+  const rh = Math.max(rect.height, el.scrollHeight, 1);
   const safeScale = Math.min(
     SCALE,
     MAX_CANVAS_DIMENSION / rw,
@@ -305,11 +309,20 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
  */
 export async function renderPreviewToPdf(element: ReactElement): Promise<Blob> {
   const host = document.createElement("div");
+  // Place the off-screen host at a fixed position that mobile browsers will
+  // still fully layout and paint. left:-10000px is too extreme — iOS Safari
+  // can skip layout/compositing for elements that far outside the viewport,
+  // making getBoundingClientRect() return 0 for height and causing the
+  // canvas to be captured at the wrong scale.
+  // Using left:0 / top:0 with a CSS translateX push keeps the element in the
+  // browser's "near-viewport" zone so layout is always computed correctly.
   host.style.position = "fixed";
-  host.style.left = "-10000px";
   host.style.top = "0";
+  host.style.left = "0";
+  host.style.transform = `translateX(${RENDER_W + 100}px)`;
   host.style.width = `${RENDER_W}px`;
-  host.style.zIndex = "-1";
+  host.style.zIndex = "-9999";
+  host.style.pointerEvents = "none";
   document.body.appendChild(host);
   const root = createRoot(host);
 

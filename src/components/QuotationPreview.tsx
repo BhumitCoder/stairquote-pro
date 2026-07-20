@@ -1,16 +1,16 @@
 import type { AppSettings, Invoice, Quotation } from "@/lib/types";
 import { formatINR, formatNum, formatDate } from "@/lib/format";
+import { getDocFontCss } from "@/lib/settings-defaults";
 
 // Luxury editorial document — designed for an audience of architects and
-// designers. Serif display type (Playfair), generous whitespace, hairline
-// rules, item "showcase" cards instead of a dense grid, and a hero total.
+// designers. Generous whitespace, hairline rules, item "showcase" cards
+// instead of a dense grid, and a hero total.
 // The PDF is a pixel-exact capture of this component (see lib/pdf-capture).
 const RED = "#E8484D";
 const INK = "#1B1B23";
 const BODY = "#4A4A55";
 const GRAY = "#8A8DA0";
 const HAIR = "#EAEAF0";
-const SERIF = '"Playfair Display", Georgia, "Times New Roman", serif';
 
 export function QuotationPreview({
   quote,
@@ -19,6 +19,10 @@ export function QuotationPreview({
   quote: Quotation | Invoice;
   settings: AppSettings;
 }) {
+  // Derive the heading/number font from the admin's docFont setting.
+  // Falls back to Playfair Display when not set.
+  const SERIF = getDocFontCss(settings.docFont);
+
   const c = quote.clientSnapshot;
   const avg = quote.totals.area > 0 ? quote.grandTotal / quote.totals.area : 0;
   const inv = "payments" in quote ? (quote as Invoice) : null;

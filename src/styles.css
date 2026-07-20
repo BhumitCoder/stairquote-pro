@@ -1,3 +1,15 @@
+/* ── SamsungOne-400 — loaded from Samsung's public CDN ── */
+@font-face {
+  font-family: "SamsungOne";
+  src:
+    url("https://fonts.samsungcloud.com/fonts/SamsungOne-400.woff2") format("woff2"),
+    url("https://fonts.samsungcloud.com/fonts/SamsungOne-400.woff") format("woff"),
+    url("https://fonts.samsungcloud.com/fonts/SamsungOne-400.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";

@@ -4,6 +4,38 @@ import type { AppSettings, RateMode } from "./types";
 // (vastustairdesigner.com), used across the app, auth screen and PDF.
 export const BRAND_TAGLINE = "Staircases that define luxury";
 
+// ── Document font options (admin-selectable, applied to quotation/bill PDFs) ──
+export const DOC_FONT_OPTIONS = [
+  {
+    value: "playfair",
+    label: "Playfair Display",
+    description: "Classic elegant serif — default",
+    css: '"Playfair Display", Georgia, "Times New Roman", serif',
+  },
+  {
+    value: "samsung-one",
+    label: "SamsungOne-400",
+    description: "Option 1 — clean modern sans",
+    css: '"SamsungOne", "Arial Narrow", Arial, sans-serif',
+  },
+  {
+    value: "arial-narrow",
+    label: "Arial Narrow",
+    description: "Option 2 — condensed precision",
+    css: '"Arial Narrow", "Arial Nova Cond", Arial, sans-serif',
+  },
+] as const;
+
+export type DocFontValue = (typeof DOC_FONT_OPTIONS)[number]["value"];
+
+/** Returns the CSS font-family string for a given docFont setting value. */
+export function getDocFontCss(docFont?: string): string {
+  return (
+    DOC_FONT_OPTIONS.find((o) => o.value === docFont)?.css ??
+    DOC_FONT_OPTIONS[0].css
+  );
+}
+
 // All rate-basis modes the app knows how to calculate. Settings can enable/disable
 // and reorder which of these show up in the "Rate Basis" dropdown, but the set of
 // possible values is fixed here because each one drives a specific calc.ts formula.
@@ -75,6 +107,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quotePrefix: "Q",
   invoicePrefix: "INV",
   docTitle: "Estimate",
+  docFont: "playfair",
   loadingNotice: "LOADING, UNLOADING & TRANSPORTATION EXTRA AS PER ACTUAL.",
   dropdowns: {
     stairTypes: [

@@ -136,6 +136,8 @@ export interface AppSettings {
   quotePrefix: string;
   invoicePrefix: string;
   docTitle: "Estimate" | "Quotation";
+  /** Font used for headings/numbers in quotation & bill PDFs. Default: "playfair" */
+  docFont?: string;
   loadingNotice: string;
   dropdowns: {
     stairTypes: string[];

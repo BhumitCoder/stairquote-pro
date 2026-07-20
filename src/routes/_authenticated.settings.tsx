@@ -7,9 +7,11 @@ import { uploadFile, deleteFile } from "@/lib/storage";
 import type { AppSettings, RateMode } from "@/lib/types";
 import {
   DEFAULT_SETTINGS,
+  DOC_FONT_OPTIONS,
   RATE_BASIS_ALL,
   RATE_BASIS_BUILTIN,
   rateBasisLabel,
+  getDocFontCss,
 } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -444,6 +446,54 @@ function SettingsPage() {
                   <option>Quotation</option>
                 </select>
               </Field>
+            </CardContent>
+          </Card>
+
+          {/* ── Document Font ── */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" /> PDF Document Font
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Heading &amp; number font used in all quotation and bill PDFs.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {DOC_FONT_OPTIONS.map((opt) => {
+                  const active = (s.docFont ?? "playfair") === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setS({ ...s, docFont: opt.value })}
+                      className={`flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition-all ${
+                        active
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border hover:border-primary/40 hover:bg-muted/40"
+                      }`}
+                    >
+                      {/* Live font preview */}
+                      <div
+                        className="text-[22px] leading-tight"
+                        style={{ fontFamily: getDocFontCss(opt.value), color: "#1B1B23" }}
+                      >
+                        ₹ 1,14,840
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="text-sm font-semibold">{opt.label}</div>
+                        <div className="text-xs text-muted-foreground">{opt.description}</div>
+                      </div>
+                      {active && (
+                        <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                          Active
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

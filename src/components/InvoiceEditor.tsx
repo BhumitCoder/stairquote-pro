@@ -11,7 +11,6 @@ import {
   deleteInvoice,
 } from "@/lib/firestore";
 import { blankItem, nextItemCode, recomputeInvoice } from "@/lib/calc";
-import { renderPreviewToPdf, downloadBlob } from "@/lib/pdf-capture";
 import type { Invoice, Payment, PaymentMode, Quotation, QuoteItem } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -194,6 +193,9 @@ export function InvoiceEditor({
       let inv = computed;
       if (!initial) inv = await saveMut.mutateAsync(undefined);
       else await saveMut.mutateAsync(undefined);
+      // Lazy-load the PDF engine (jsPDF + html2canvas) only on download, so it
+      // isn't in the editor's initial bundle — keeps first page load fast.
+      const { renderPreviewToPdf, downloadBlob } = await import("@/lib/pdf-capture");
       const blob = await renderPreviewToPdf(<QuotationPreview quote={inv} settings={settings} />);
       downloadBlob(blob, `${inv.number}.pdf`);
     } catch (e) {

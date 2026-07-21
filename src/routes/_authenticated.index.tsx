@@ -1,16 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { lazy, Suspense, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { listQuotations, listInvoices, listClients } from "@/lib/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,10 +30,9 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
-// Validated categorical palette (dataviz six checks, light surface):
-const C_QUOTED = "#2563eb";
-const C_BILLED = "#e8484d";
-const C_RECEIVED = "#0d9488";
+// recharts is a large dependency — lazy-load the chart so it never blocks the
+// dashboard's first paint.
+const TrendChart = lazy(() => import("@/components/TrendChart"));
 
 const STATUS_BAR: Record<QuoteStatus, string> = {
   Draft: "bg-zinc-400",
@@ -51,14 +40,6 @@ const STATUS_BAR: Record<QuoteStatus, string> = {
   Accepted: "bg-success",
   Rejected: "bg-destructive",
 };
-
-// ₹ axis ticks in Indian compact units (1.2L / 50k)
-function inrCompact(v: number): string {
-  if (v >= 10000000) return `₹${(v / 10000000).toFixed(1)}Cr`;
-  if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
-  if (v >= 1000) return `₹${(v / 1000).toFixed(0)}k`;
-  return `₹${v}`;
-}
 
 function Dashboard() {
   const { user } = useAuth();
@@ -304,49 +285,11 @@ function Dashboard() {
           </CardHeader>
           <CardContent>
             {hasTrendData ? (
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trend} barGap={2} barCategoryGap="24%">
-                    <CartesianGrid vertical={false} stroke="#e9e9ee" strokeWidth={1} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 12, fill: "#71717a" }}
-                    />
-                    <YAxis
-                      tickFormatter={inrCompact}
-                      tickLine={false}
-                      axisLine={false}
-                      width={56}
-                      tick={{ fontSize: 11, fill: "#71717a" }}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                      formatter={(v: number) => formatINR(v)}
-                      contentStyle={{
-                        borderRadius: 8,
-                        border: "1px solid #e4e4e7",
-                        fontSize: 12,
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                      }}
-                    />
-                    <Legend
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-                    />
-                    <Bar dataKey="Quoted" fill={C_QUOTED} radius={[3, 3, 0, 0]} maxBarSize={18} />
-                    <Bar dataKey="Billed" fill={C_BILLED} radius={[3, 3, 0, 0]} maxBarSize={18} />
-                    <Bar
-                      dataKey="Received"
-                      fill={C_RECEIVED}
-                      radius={[3, 3, 0, 0]}
-                      maxBarSize={18}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <Suspense
+                fallback={<div className="h-72 w-full animate-pulse rounded-lg bg-muted/50" />}
+              >
+                <TrendChart data={trend} />
+              </Suspense>
             ) : (
               <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
                 No activity yet — create quotations and bills to see the trend.
@@ -507,7 +450,7 @@ function Dashboard() {
                       className="h-full rounded-full"
                       style={{
                         width: `${topClientMax > 0 ? (c.value / topClientMax) * 100 : 0}%`,
-                        background: C_QUOTED,
+                        background: "#2563eb",
                       }}
                     />
                   </div>

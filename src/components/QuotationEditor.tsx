@@ -15,7 +15,6 @@ import {
 } from "@/lib/firestore";
 import { uploadFile, deleteFile } from "@/lib/storage";
 import { blankItem, nextItemCode, recomputeQuotation } from "@/lib/calc";
-import { renderPreviewToPdf, downloadBlob } from "@/lib/pdf-capture";
 import type { Client, Quotation, QuoteItem, QuoteStatus, RateMode, MeasureUnit } from "@/lib/types";
 import { DEFAULT_SETTINGS, rateBasisLabel } from "@/lib/settings-defaults";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -213,6 +212,9 @@ export function QuotationEditor({
       } else {
         await saveMut.mutateAsync();
       }
+      // Lazy-load the PDF engine (jsPDF + html2canvas) only on download, so it
+      // isn't in the editor's initial bundle — keeps first page load fast.
+      const { renderPreviewToPdf, downloadBlob } = await import("@/lib/pdf-capture");
       const blob = await renderPreviewToPdf(<QuotationPreview quote={q} settings={settings} />);
       downloadBlob(blob, `${q.number}.pdf`);
     } catch (e) {

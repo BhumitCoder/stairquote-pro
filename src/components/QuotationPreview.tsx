@@ -479,9 +479,9 @@ export function QuotationPreview({
           </div>
         </div>
 
-        {/* ── Footer ── */}
+        {/* ── Footer (extra space above its divider line) ── */}
         <div
-          className="relative z-10 border-t px-4 py-3.5 text-center text-[8.5px] uppercase tracking-[0.06em]"
+          className="relative z-10 mt-8 border-t px-4 py-3.5 text-center text-[8.5px] uppercase tracking-[0.06em]"
           style={{ borderColor: HAIR, color: GRAY }}
         >
           {[

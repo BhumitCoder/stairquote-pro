@@ -194,7 +194,7 @@ export function QuotationPreview({
                   <img
                     src={it.imageUrl}
                     alt=""
-                    className="h-28 w-28 shrink-0 rounded-lg object-cover"
+                    className="h-20 w-20 shrink-0 rounded-lg object-cover"
                     style={{ boxShadow: "0 3px 14px rgba(20,20,30,0.12)" }}
                   />
                 )}

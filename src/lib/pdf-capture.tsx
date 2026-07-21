@@ -184,6 +184,12 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
       const candidates = blockTops.filter((t) => t > s + 40 && t <= e);
       if (candidates.length > 0) e = candidates[candidates.length - 1];
     }
+    // Safety: a page break must NEVER land inside the closing block (signatures
+    // + stamp + footer). If it would, snap the break up to the closing block's
+    // top so the whole closing block moves intact to the final page.
+    if (closingTopCss != null && e > closingTopCss && e < totalCss && closingTopCss > s + 40) {
+      e = closingTopCss;
+    }
     pages.push({ s, e });
     s = e;
     idx++;

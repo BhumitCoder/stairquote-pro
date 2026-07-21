@@ -197,11 +197,16 @@ async function captureToPdf(
   }
   if (pages.length === 0) pages.push({ s: 0, e: masterH });
 
-  // Can the closing block share the last content page (pinned to the bottom)?
+  // Small margin below the closing block so the footer/red rule isn't flush
+  // against the paper edge — reads more professional.
+  const closeBottomPx = Math.round((7 / A4_W) * wPx);
+  const closeY = pageHpx - closeH - closeBottomPx;
+
+  // Can the closing block share the last content page (pinned near the bottom)?
   const last = pages[pages.length - 1];
   const lastOffTop = pages.length === 1 ? 0 : padTopPx;
   const lastContentH = last.e - last.s;
-  const closingFitsLast = lastOffTop + lastContentH + 24 + closeH <= pageHpx;
+  const closingFitsLast = lastOffTop + lastContentH + 24 + closeH + closeBottomPx <= pageHpx;
 
   for (let p = 0; p < pages.length; p++) {
     const { s: startPx, e: endPx } = pages[p];
@@ -215,7 +220,7 @@ async function captureToPdf(
     // path, pin the closing block to the bottom of the last content page if it
     // fits; otherwise it goes on its own final page.
     if (isLastContent && closingCanvas && closingFitsLast) {
-      drawClosing(ctx, pageHpx - closeH);
+      drawClosing(ctx, closeY);
     }
     drawWatermark(ctx);
     if (p > 0) doc.addPage();

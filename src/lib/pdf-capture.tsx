@@ -146,10 +146,11 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
   // ── Single page (incl. fit-to-page for a barely-overflowing document) ──────
   const cap1Css = PAGE_CSS - padBottomCss;
   if (totalCss <= cap1Css / 0.88) {
-    const slice = await capturePage(el, 0, totalCss, scale);
     const { c, ctx } = newPageCanvas();
     if (totalCss > cap1Css) {
-      // Barely over — scale the whole thing down a hair to fit one page.
+      // Barely over — scale the whole thing down a hair to fill one page; the
+      // closing block ends at the bottom naturally.
+      const slice = await capturePage(el, 0, totalCss, scale);
       const s = cap1Css / totalCss;
       const destW = Math.round(wPx * s);
       const destH = Math.round(slice.height * s);
@@ -164,7 +165,17 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
         destW,
         destH,
       );
+    } else if (closingTopCss != null && closingTopCss > 40) {
+      // Comfortably fits: content at the top, and the closing block (signatures
+      // + stamp + thank-you + footer + red rule) pinned to the very bottom edge
+      // (bottom: 0) — the professional letterhead look.
+      const topSlice = await capturePage(el, 0, closingTopCss, scale);
+      ctx.drawImage(topSlice, 0, 0);
+      const closeSlice = await capturePage(el, closingTopCss, totalCss - closingTopCss, scale);
+      const closeY = Math.max(pageHpx - closeSlice.height, topSlice.height);
+      ctx.drawImage(closeSlice, 0, closeY);
     } else {
+      const slice = await capturePage(el, 0, totalCss, scale);
       ctx.drawImage(slice, 0, 0);
     }
     drawWatermark(ctx);

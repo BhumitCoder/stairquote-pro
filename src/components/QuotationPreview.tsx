@@ -477,13 +477,6 @@ export function QuotationPreview({
               </div>
             </div>
           </div>
-
-          <div
-            style={{ fontFamily: SERIF, color: RED }}
-            className="pb-6 pt-7 text-center text-[15px] italic"
-          >
-            Thank you for choosing {settings.company.name}
-          </div>
         </div>
 
         {/* ── Footer ── */}

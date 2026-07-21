@@ -65,8 +65,8 @@ export interface Quotation {
   createdAt?: number;
   updatedAt?: number;
   // Revision tracking — originals have neither field; revisions carry both.
-  parentId?: string;  // Firestore ID of the original (base) quotation
-  revision?: number;  // 1, 2, 3 … revision sequence off the original
+  parentId?: string; // Firestore ID of the original (base) quotation
+  revision?: number; // 1, 2, 3 … revision sequence off the original
 }
 
 // ============ Bills / Invoices ============

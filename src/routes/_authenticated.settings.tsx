@@ -562,13 +562,7 @@ function DropdownEditor({
   );
 }
 
-function RateBasisEditor({
-  list,
-  onChange,
-}: {
-  list: string[];
-  onChange: (l: string[]) => void;
-}) {
+function RateBasisEditor({ list, onChange }: { list: string[]; onChange: (l: string[]) => void }) {
   const [newEntry, setNewEntry] = useState("");
 
   // Split into built-ins already in the list, built-ins not yet added, and custom entries.

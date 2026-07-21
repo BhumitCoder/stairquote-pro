@@ -123,7 +123,11 @@ function SidebarContent({
       >
         {!collapsed && (
           <div className="min-w-0">
-            <img src="/logo.png" alt="Vastu Stairs Designer" className="h-9 w-auto object-contain" />
+            <img
+              src="/logo.png"
+              alt="Vastu Stairs Designer"
+              className="h-9 w-auto object-contain"
+            />
             <div
               className="mt-1 truncate text-[9px] italic tracking-wide"
               style={{ color: "var(--color-sidebar-foreground)", opacity: 0.5 }}
@@ -148,7 +152,11 @@ function SidebarContent({
             className="rounded-md p-1.5 transition-colors hover:bg-black/5"
             style={{ color: "var(--color-sidebar-foreground)", opacity: 0.6 }}
           >
-            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
           </button>
         )}
       </div>
@@ -198,23 +206,35 @@ function SidebarContent({
           <div
             title={collapsed ? (user.email ?? undefined) : undefined}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold uppercase"
-            style={{ background: "var(--color-sidebar-accent)", color: "var(--color-sidebar-foreground)" }}
+            style={{
+              background: "var(--color-sidebar-accent)",
+              color: "var(--color-sidebar-foreground)",
+            }}
           >
             {user.email?.[0] ?? "U"}
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium" style={{ color: "var(--color-sidebar-foreground)" }}>
+              <div
+                className="truncate text-xs font-medium"
+                style={{ color: "var(--color-sidebar-foreground)" }}
+              >
                 {user.email}
               </div>
-              <div className="text-[11px]" style={{ color: "var(--color-sidebar-foreground)", opacity: 0.45 }}>
+              <div
+                className="text-[11px]"
+                style={{ color: "var(--color-sidebar-foreground)", opacity: 0.45 }}
+              >
                 Owner
               </div>
             </div>
           )}
         </div>
         <button
-          onClick={async () => { await logout(); nav({ to: "/auth" }); }}
+          onClick={async () => {
+            await logout();
+            nav({ to: "/auth" });
+          }}
           title={collapsed ? "Sign out" : undefined}
           className={cn(
             "flex w-full items-center rounded-lg py-2 text-sm font-medium transition-all duration-150 hover:bg-red-500/15 hover:text-red-400",
@@ -248,7 +268,13 @@ function CallbackReminderModal({ user }: { user: User }) {
 
   if (dueToday.length === 0) return null;
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setDismissed(true); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setDismissed(true);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -257,16 +283,27 @@ function CallbackReminderModal({ user }: { user: User }) {
         </DialogHeader>
         <ul className="max-h-80 space-y-2 overflow-y-auto">
           {dueToday.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+            <li
+              key={c.id}
+              className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3"
+            >
               <div className="min-w-0">
                 <div className="font-medium">{c.name}</div>
-                {c.callbackNote && <div className="truncate text-xs text-muted-foreground">{c.callbackNote}</div>}
+                {c.callbackNote && (
+                  <div className="truncate text-xs text-muted-foreground">{c.callbackNote}</div>
+                )}
                 {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
               </div>
               <div className="flex shrink-0 gap-2">
-                {c.phone && <Button size="sm" asChild><a href={`tel:${c.phone}`}>Call</a></Button>}
+                {c.phone && (
+                  <Button size="sm" asChild>
+                    <a href={`tel:${c.phone}`}>Call</a>
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" asChild>
-                  <Link to="/clients/$id" params={{ id: c.id }} onClick={() => setOpen(false)}>View</Link>
+                  <Link to="/clients/$id" params={{ id: c.id }} onClick={() => setOpen(false)}>
+                    View
+                  </Link>
                 </Button>
               </div>
             </li>
@@ -304,7 +341,8 @@ function MoreSheet({
         onClick={onClose}
       />
       {/* Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-background shadow-2xl md:hidden"
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-background shadow-2xl md:hidden"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
       >
         {/* Handle */}
@@ -334,12 +372,12 @@ function MoreSheet({
                   onClick={onClose}
                   className={cn(
                     "flex items-center gap-4 rounded-2xl px-4 py-3.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-accent",
+                    isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-accent",
                   )}
                 >
-                  <it.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                  <it.icon
+                    className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")}
+                  />
                   {it.label}
                   <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/50" />
                 </Link>
@@ -351,7 +389,11 @@ function MoreSheet({
         {/* Sign out */}
         <div className="border-t px-3 pb-3 pt-2">
           <button
-            onClick={async () => { await logout(); nav({ to: "/auth" }); onClose(); }}
+            onClick={async () => {
+              await logout();
+              nav({ to: "/auth" });
+              onClose();
+            }}
             className="flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-5 w-5" />
@@ -386,13 +428,25 @@ function BottomNav({
           const isActive = it.to === active;
           return (
             <Link key={it.to} to={it.to} className="flex flex-1 flex-col items-center gap-0.5 py-1">
-              <div className={cn(
-                "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
-                isActive ? "bg-primary/15" : "",
-              )}>
-                <it.icon className={cn("h-5 w-5 transition-colors", isActive ? "text-primary" : "text-muted-foreground")} />
+              <div
+                className={cn(
+                  "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
+                  isActive ? "bg-primary/15" : "",
+                )}
+              >
+                <it.icon
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    isActive ? "text-primary" : "text-muted-foreground",
+                  )}
+                />
               </div>
-              <span className={cn("text-[10px] font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
+              <span
+                className={cn(
+                  "text-[10px] font-medium",
+                  isActive ? "text-primary" : "text-muted-foreground",
+                )}
+              >
                 {it.label}
               </span>
             </Link>
@@ -405,13 +459,25 @@ function BottomNav({
           const isActiveStrict = it.to === active;
           return (
             <Link key={it.to} to={it.to} className="flex flex-1 flex-col items-center gap-0.5 py-1">
-              <div className={cn(
-                "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
-                isActiveStrict ? "bg-primary/15" : "",
-              )}>
-                <it.icon className={cn("h-5 w-5 transition-colors", isActiveStrict ? "text-primary" : "text-muted-foreground")} />
+              <div
+                className={cn(
+                  "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
+                  isActiveStrict ? "bg-primary/15" : "",
+                )}
+              >
+                <it.icon
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    isActiveStrict ? "text-primary" : "text-muted-foreground",
+                  )}
+                />
               </div>
-              <span className={cn("text-[10px] font-medium", isActiveStrict ? "text-primary" : "text-muted-foreground")}>
+              <span
+                className={cn(
+                  "text-[10px] font-medium",
+                  isActiveStrict ? "text-primary" : "text-muted-foreground",
+                )}
+              >
                 {it.label}
               </span>
             </Link>
@@ -419,10 +485,7 @@ function BottomNav({
         })}
 
         {/* Centre FAB — New Quotation */}
-        <Link
-          to="/quotations/new"
-          className="relative flex flex-col items-center gap-0.5 -mt-5"
-        >
+        <Link to="/quotations/new" className="relative flex flex-col items-center gap-0.5 -mt-5">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 ring-4 ring-background transition-transform active:scale-95">
             <PlusCircle className="h-7 w-7 text-primary-foreground" />
           </div>
@@ -435,13 +498,25 @@ function BottomNav({
           const isActiveStrict = it.to === active;
           return (
             <Link key={it.to} to={it.to} className="flex flex-1 flex-col items-center gap-0.5 py-1">
-              <div className={cn(
-                "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
-                isActiveStrict ? "bg-primary/15" : "",
-              )}>
-                <it.icon className={cn("h-5 w-5 transition-colors", isActiveStrict ? "text-primary" : "text-muted-foreground")} />
+              <div
+                className={cn(
+                  "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
+                  isActiveStrict ? "bg-primary/15" : "",
+                )}
+              >
+                <it.icon
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    isActiveStrict ? "text-primary" : "text-muted-foreground",
+                  )}
+                />
               </div>
-              <span className={cn("text-[10px] font-medium", isActiveStrict ? "text-primary" : "text-muted-foreground")}>
+              <span
+                className={cn(
+                  "text-[10px] font-medium",
+                  isActiveStrict ? "text-primary" : "text-muted-foreground",
+                )}
+              >
                 {it.label}
               </span>
             </Link>
@@ -449,17 +524,26 @@ function BottomNav({
         })}
 
         {/* More */}
-        <button
-          onClick={onMoreClick}
-          className="flex flex-1 flex-col items-center gap-0.5 py-1"
-        >
-          <div className={cn(
-            "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
-            moreOpen ? "bg-primary/15" : "",
-          )}>
-            <MoreHorizontal className={cn("h-5 w-5 transition-colors", moreOpen ? "text-primary" : "text-muted-foreground")} />
+        <button onClick={onMoreClick} className="flex flex-1 flex-col items-center gap-0.5 py-1">
+          <div
+            className={cn(
+              "flex h-8 w-12 items-center justify-center rounded-2xl transition-all",
+              moreOpen ? "bg-primary/15" : "",
+            )}
+          >
+            <MoreHorizontal
+              className={cn(
+                "h-5 w-5 transition-colors",
+                moreOpen ? "text-primary" : "text-muted-foreground",
+              )}
+            />
           </div>
-          <span className={cn("text-[10px] font-medium", moreOpen ? "text-primary" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "text-[10px] font-medium",
+              moreOpen ? "text-primary" : "text-muted-foreground",
+            )}
+          >
             More
           </span>
         </button>
@@ -490,7 +574,9 @@ function AuthedLayout() {
   }, [user, loading, nav]);
 
   // Close More sheet on route change
-  useEffect(() => { setMoreOpen(false); }, [pathname]);
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
 
   if (loading || !user) return <PageLoader />;
 
@@ -546,7 +632,11 @@ function AuthedLayout() {
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      <BottomNav pathname={pathname} onMoreClick={() => setMoreOpen((v) => !v)} moreOpen={moreOpen} />
+      <BottomNav
+        pathname={pathname}
+        onMoreClick={() => setMoreOpen((v) => !v)}
+        moreOpen={moreOpen}
+      />
 
       {/* ── Mobile "More" sheet ── */}
       <MoreSheet

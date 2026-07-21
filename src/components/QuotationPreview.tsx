@@ -53,9 +53,7 @@ function ContainImage({
         src={src}
         alt={alt}
         style={
-          size
-            ? { width: size.w, height: size.h }
-            : { maxWidth: boxWidth, maxHeight: boxHeight }
+          size ? { width: size.w, height: size.h } : { maxWidth: boxWidth, maxHeight: boxHeight }
         }
         onLoad={(e) => {
           const img = e.currentTarget;
@@ -169,7 +167,13 @@ export function QuotationPreview({
               it.location && `Location: ${it.location}`,
               [it.material, it.finish].filter(Boolean).join(" / "),
               it.steps ? `${it.steps} Steps` : "",
-              it.width && it.height ? `${it.width} × ${it.height} mm` : it.width ? `W ${it.width} mm` : it.height ? `H ${it.height} mm` : "",
+              it.width && it.height
+                ? `${it.width} × ${it.height} mm`
+                : it.width
+                  ? `W ${it.width} mm`
+                  : it.height
+                    ? `H ${it.height} mm`
+                    : "",
               it.rateMode === "sqft" || it.rateMode === "rft"
                 ? it.measureValue
                   ? `${formatNum(it.measureValue * it.qty, 2)} ${it.measureUnit}`
@@ -420,7 +424,9 @@ export function QuotationPreview({
                     style={{ background: RED }}
                     className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
                   />
-                  <span style={{ color: BODY }} className="whitespace-pre-line">{t}</span>
+                  <span style={{ color: BODY }} className="whitespace-pre-line">
+                    {t}
+                  </span>
                 </li>
               ))}
           </ol>
@@ -440,10 +446,18 @@ export function QuotationPreview({
               </div>
             </div>
 
-            <div className="flex flex-shrink-0 flex-col items-center" style={{ minWidth: 140, maxWidth: 220 }}>
+            <div
+              className="flex flex-shrink-0 flex-col items-center"
+              style={{ minWidth: 140, maxWidth: 220 }}
+            >
               <div
                 className="w-full text-center text-[9px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                style={{
+                  color: INK,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
               >
                 For {settings.company.name}
               </div>

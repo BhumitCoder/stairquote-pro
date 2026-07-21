@@ -614,7 +614,9 @@ function Dashboard() {
                       </div>
                       <div className="shrink-0 text-right">
                         <div className="text-sm font-bold">{formatINR(q.grandTotal)}</div>
-                        <div className="mt-1"><StatusBadge status={q.status} /></div>
+                        <div className="mt-1">
+                          <StatusBadge status={q.status} />
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -641,7 +643,9 @@ function Dashboard() {
                         <TableCell className="max-w-[200px] truncate">
                           {q.clientSnapshot?.name || "—"}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(q.date)}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(q.date)}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status={q.status} />
                         </TableCell>

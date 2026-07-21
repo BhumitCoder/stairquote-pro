@@ -39,7 +39,9 @@ function wasDismissedRecently() {
 function dismiss() {
   try {
     localStorage.setItem(DISMISSED_KEY, String(Date.now()));
-  } catch { }
+  } catch {
+    // localStorage unavailable (private mode) — dismissal just won't persist
+  }
 }
 
 export function InstallPrompt() {
@@ -52,7 +54,10 @@ export function InstallPrompt() {
 
     if (isIosSafari()) {
       // Show iOS instructions after a short delay
-      const t = setTimeout(() => { setShowIos(true); setVisible(true); }, 3000);
+      const t = setTimeout(() => {
+        setShowIos(true);
+        setVisible(true);
+      }, 3000);
       return () => clearTimeout(t);
     }
 

@@ -402,8 +402,8 @@ export function InvoiceEditor({
             <CardContent className="p-0">
               {payments.length === 0 ? (
                 <div className="p-6 text-sm text-muted-foreground">
-                  No payments recorded yet. Use "Record Payment" for advances and
-                  installments — the bill status updates automatically.
+                  No payments recorded yet. Use "Record Payment" for advances and installments — the
+                  bill status updates automatically.
                 </div>
               ) : (
                 <>
@@ -502,7 +502,8 @@ export function InvoiceEditor({
                     {formatINR(computed.amountPaid)}
                   </span>
                   <span className="text-muted-foreground">
-                    {" "}of {formatINR(computed.grandTotal)} —{" "}
+                    {" "}
+                    of {formatINR(computed.grandTotal)} —{" "}
                   </span>
                   <span className="font-semibold text-primary">
                     {formatINR(computed.balanceDue)} due

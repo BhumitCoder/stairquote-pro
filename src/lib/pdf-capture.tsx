@@ -118,6 +118,13 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     backgroundColor: "#ffffff",
     logging: false,
     windowWidth: RENDER_W,
+    windowHeight: Math.ceil(rh),
+    // Force html2canvas to treat the page as un-scrolled. On mobile the Download
+    // button sits far down the page, so the window is scrolled when capture runs.
+    // Without these, html2canvas offsets the off-screen element by the scroll
+    // amount and DUPLICATES content near the scroll position (the ghost stamp).
+    scrollX: 0,
+    scrollY: 0,
     onclone: (docClone) => {
       // The watermark is stamped per-page afterwards — hide the single DOM one.
       docClone.querySelectorAll<HTMLElement>("[data-watermark]").forEach((n) => {
@@ -143,12 +150,6 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
 
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
 
-  // The closing block (signatures + thank-you + footer) is the LAST [data-block]
-  // — on the final page it is pinned to the absolute bottom edge, so the red
-  // rule always closes the sheet like real letterhead.
-  const closingTop = blockTops.length > 0 ? blockTops[blockTops.length - 1] : null;
-  const closingH = closingTop != null ? canvas.height - closingTop : 0;
-
   const drawWatermark = (ctx: CanvasRenderingContext2D) => {
     if (logoImg && logoImg.naturalWidth > 0) {
       const wmW = w * 0.5;
@@ -159,10 +160,9 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     }
   };
 
-  // Fit-to-page: when the document only *barely* overflows one page (the
-  // signature block spilling over), shrink the whole capture up to 12% so it
-  // fits a single page — invisible at ~290 DPI, and far more professional
-  // than a near-empty second page.
+  // Fit-to-page: when the document only *barely* overflows one page, shrink the
+  // whole capture up to 12% so it fits a single page — invisible at ~290 DPI,
+  // and far more professional than a near-empty second page.
   const cap1 = pageHpx - padBottom;
   if (canvas.height > cap1 && canvas.height * 0.88 <= cap1) {
     const s = cap1 / canvas.height;
@@ -177,41 +177,17 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
       ctx.fillRect(0, 0, w, pageHpx);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      if (closingTop != null && closingTop > 0) {
-        // Content at the top, closing block pinned to the page bottom.
-        const topH = Math.floor(closingTop * s);
-        const closeH = Math.floor(closingH * s);
-        ctx.drawImage(canvas, 0, 0, w, closingTop, destX, 0, destW, topH);
-        ctx.drawImage(
-          canvas,
-          0,
-          closingTop,
-          w,
-          closingH,
-          destX,
-          Math.max(pageHpx - closeH, topH),
-          destW,
-          closeH,
-        );
-      } else {
-        ctx.drawImage(
-          canvas,
-          0,
-          0,
-          w,
-          canvas.height,
-          destX,
-          0,
-          destW,
-          Math.floor(canvas.height * s),
-        );
-      }
+      ctx.drawImage(canvas, 0, 0, w, canvas.height, destX, 0, destW, Math.floor(canvas.height * s));
       drawWatermark(ctx);
       doc.addImage(page.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
       return doc.output("blob");
     }
   }
 
+  // Multi-page: content flows top-to-bottom continuously. Each page fills with
+  // as many [data-block] sections as fit, and the break always lands ON a block
+  // boundary — so a line, a term, or the signature block is NEVER sliced in
+  // half. No artificial bottom-pinning (that was what left large empty gaps).
   let sy = 0;
   let pageIndex = 0;
   while (sy < canvas.height) {
@@ -220,18 +196,14 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     let end = Math.min(sy + capacity, canvas.height);
 
     if (end < canvas.height) {
-      // Prefer a break BETWEEN blocks: the lowest block top that fits this page
-      // (but never leave a page less than a third full).
-      // IMPORTANT: Never break at closingTop itself — that would isolate the
-      // closing block alone on the final page and create a blank-page gap when
-      // it is pinned to the bottom. Keeping the closing block anchored to
-      // whatever non-closing content precedes it on the final page is correct.
-      const candidates = blockTops.filter(
-        (t) => t > sy + capacity * 0.33 && t <= end && t !== closingTop,
-      );
+      // Break at the lowest block boundary that still fits this page, so the
+      // page fills up and the cut lands in the white gap between two blocks.
+      const candidates = blockTops.filter((t) => t > sy + 40 && t <= end);
       if (candidates.length > 0) {
         end = candidates[candidates.length - 1];
       } else if (srcCtx) {
+        // A single block taller than a page — cut at the nearest white row so
+        // no text line is sliced through.
         end = whiteScanCut(srcCtx, w, sy, end);
       }
     }
@@ -244,52 +216,7 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     if (!ctx) break;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, pageHpx);
-
-    const isLastPage = end >= canvas.height;
-    if (isLastPage && closingTop != null && closingTop >= sy) {
-      // Final page: content at the top, closing block pinned to the bottom edge.
-      const topH = closingTop - sy;
-      const availH = pageHpx - offsetY - topH;
-
-      if (topH > 0 && closingH > availH) {
-        // The closing block doesn't fit alongside the remaining content on this
-        // page (would overflow and cut off the last line / red rule). Finish
-        // the current page with just the top content, then add a dedicated
-        // page for the closing block so nothing is clipped.
-        ctx.drawImage(canvas, 0, sy, w, topH, 0, offsetY, w, topH);
-        drawWatermark(ctx);
-        if (pageIndex > 0) doc.addPage();
-        doc.addImage(page.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
-
-        // New page — closing block pinned to the bottom.
-        const closingPage = document.createElement("canvas");
-        closingPage.width = w;
-        closingPage.height = pageHpx;
-        const cCtx = closingPage.getContext("2d");
-        if (cCtx) {
-          cCtx.fillStyle = "#ffffff";
-          cCtx.fillRect(0, 0, w, pageHpx);
-          // Pin closing block to the bottom; if it's taller than the page,
-          // start from padTop so at least the top is visible.
-          const cY = Math.max(pageHpx - closingH, padTop);
-          cCtx.drawImage(canvas, 0, closingTop, w, closingH, 0, cY, w, closingH);
-          drawWatermark(cCtx);
-          doc.addPage();
-          doc.addImage(closingPage.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
-        }
-        break; // done
-      }
-
-      if (topH > 0) ctx.drawImage(canvas, 0, sy, w, topH, 0, offsetY, w, topH);
-      // Safety: if topH == 0 the closing block is the only content on this page
-      // (can happen via whiteScanCut). Pin-to-bottom would leave a full blank
-      // page above it, so instead draw it naturally from the top margin.
-      const closeY =
-        topH > 0 ? Math.max(pageHpx - closingH, offsetY + topH) : offsetY;
-      ctx.drawImage(canvas, 0, closingTop, w, closingH, 0, closeY, w, closingH);
-    } else {
-      ctx.drawImage(canvas, 0, sy, w, sliceH, 0, offsetY, w, sliceH);
-    }
+    ctx.drawImage(canvas, 0, sy, w, sliceH, 0, offsetY, w, sliceH);
 
     drawWatermark(ctx);
 
@@ -325,6 +252,16 @@ export async function renderPreviewToPdf(element: ReactElement): Promise<Blob> {
   host.style.pointerEvents = "none";
   document.body.appendChild(host);
   const root = createRoot(host);
+
+  // Lock the window at the top while capturing. html2canvas maps the off-screen
+  // element against the window scroll position; if the page is scrolled (mobile
+  // Download button is low on the page), content gets duplicated/offset. We
+  // restore the exact scroll position afterwards so the user sees no jump.
+  const prevScrollX = window.scrollX;
+  const prevScrollY = window.scrollY;
+  const prevScrollBehavior = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = "auto";
+  window.scrollTo(0, 0);
 
   try {
     // Two RAFs: one for React to commit, one for layout/paint to settle.
@@ -380,6 +317,9 @@ export async function renderPreviewToPdf(element: ReactElement): Promise<Blob> {
   } finally {
     root.unmount();
     host.remove();
+    // Restore the user's scroll position — no visible jump.
+    window.scrollTo(prevScrollX, prevScrollY);
+    document.documentElement.style.scrollBehavior = prevScrollBehavior;
   }
 }
 

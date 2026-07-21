@@ -175,7 +175,10 @@ function ClientsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => { setEditing(c); setOpen(true); }}
+                          onClick={() => {
+                            setEditing(c);
+                            setOpen(true);
+                          }}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -185,7 +188,11 @@ function ClientsPage() {
                           className="h-8 w-8"
                           disabled={delMut.isPending}
                           onClick={() => {
-                            if (confirm(`Delete ${c.name}? Existing quotations for this client will be kept.`))
+                            if (
+                              confirm(
+                                `Delete ${c.name}? Existing quotations for this client will be kept.`,
+                              )
+                            )
                               delMut.mutate(c.id);
                           }}
                         >
@@ -205,7 +212,11 @@ function ClientsPage() {
                                 : "bg-muted text-muted-foreground",
                           )}
                         >
-                          {cbToday ? <PhoneCall className="h-3 w-3" /> : <CalendarClock className="h-3 w-3" />}
+                          {cbToday ? (
+                            <PhoneCall className="h-3 w-3" />
+                          ) : (
+                            <CalendarClock className="h-3 w-3" />
+                          )}
                           {cbToday
                             ? "Call today"
                             : cbOverdue
@@ -259,7 +270,9 @@ function ClientsPage() {
                             <div className="min-w-0">
                               <div className="truncate font-medium">{c.name}</div>
                               {c.org && (
-                                <div className="truncate text-xs text-muted-foreground">{c.org}</div>
+                                <div className="truncate text-xs text-muted-foreground">
+                                  {c.org}
+                                </div>
                               )}
                             </div>
                           </div>

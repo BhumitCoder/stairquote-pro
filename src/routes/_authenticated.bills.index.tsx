@@ -157,11 +157,15 @@ function BillsPage() {
                       <div className="mt-0.5 truncate font-medium">
                         {inv.clientSnapshot?.name || "—"}
                       </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">{formatDate(inv.date)}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {formatDate(inv.date)}
+                      </div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-base font-bold">{formatINR(inv.grandTotal)}</div>
-                      <div className="mt-1"><StatusBadge status={inv.status} /></div>
+                      <div className="mt-1">
+                        <StatusBadge status={inv.status} />
+                      </div>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2 text-xs">
@@ -213,7 +217,9 @@ function BillsPage() {
                       <TableCell className="max-w-[200px] truncate">
                         {inv.clientSnapshot?.name || "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(inv.date)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(inv.date)}
+                      </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatINR(inv.grandTotal)}
                       </TableCell>

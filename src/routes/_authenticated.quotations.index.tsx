@@ -177,15 +177,21 @@ function QuotationsPage() {
                         {q.clientSnapshot?.name || "—"}
                       </div>
                       {q.clientSnapshot?.org && (
-                        <div className="truncate text-xs text-muted-foreground">{q.clientSnapshot.org}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {q.clientSnapshot.org}
+                        </div>
                       )}
                       {q.clientSnapshot?.phone && (
-                        <div className="mt-0.5 text-xs text-muted-foreground">{q.clientSnapshot.phone}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {q.clientSnapshot.phone}
+                        </div>
                       )}
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-base font-bold">{formatINR(q.grandTotal)}</div>
-                      <div className="mt-1"><StatusBadge status={q.status} /></div>
+                      <div className="mt-1">
+                        <StatusBadge status={q.status} />
+                      </div>
                       <div className="mt-1 text-xs text-muted-foreground">{formatDate(q.date)}</div>
                     </div>
                   </div>
@@ -212,7 +218,9 @@ function QuotationsPage() {
                     <TableHead>Client</TableHead>
                     <TableHead className="hidden w-[140px] md:table-cell">Phone</TableHead>
                     <TableHead className="w-[120px]">Date</TableHead>
-                    <TableHead className="hidden w-[80px] text-center sm:table-cell">Items</TableHead>
+                    <TableHead className="hidden w-[80px] text-center sm:table-cell">
+                      Items
+                    </TableHead>
                     <TableHead className="w-[160px] text-right">Amount</TableHead>
                     <TableHead className="w-[130px] pl-8">Status</TableHead>
                   </TableRow>

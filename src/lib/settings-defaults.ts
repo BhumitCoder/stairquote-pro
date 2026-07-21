@@ -30,10 +30,7 @@ export type DocFontValue = (typeof DOC_FONT_OPTIONS)[number]["value"];
 
 /** Returns the CSS font-family string for a given docFont setting value. */
 export function getDocFontCss(docFont?: string): string {
-  return (
-    DOC_FONT_OPTIONS.find((o) => o.value === docFont)?.css ??
-    DOC_FONT_OPTIONS[0].css
-  );
+  return DOC_FONT_OPTIONS.find((o) => o.value === docFont)?.css ?? DOC_FONT_OPTIONS[0].css;
 }
 
 // All rate-basis modes the app knows how to calculate. Settings can enable/disable

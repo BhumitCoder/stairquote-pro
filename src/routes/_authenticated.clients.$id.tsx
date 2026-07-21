@@ -257,9 +257,7 @@ function ClientProfile() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-4">
-            <div className="truncate text-lg font-bold sm:text-xl md:text-2xl">
-              {quotes.length}
-            </div>
+            <div className="truncate text-lg font-bold sm:text-xl md:text-2xl">{quotes.length}</div>
             <div className="text-xs text-muted-foreground">Total Quotations</div>
           </CardContent>
         </Card>
@@ -477,7 +475,9 @@ function ClientProfile() {
                               {formatDate(inv.date)}
                             </div>
                           </div>
-                          <div className="shrink-0"><StatusBadge status={inv.status} /></div>
+                          <div className="shrink-0">
+                            <StatusBadge status={inv.status} />
+                          </div>
                         </div>
                         <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                           <div>

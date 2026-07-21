@@ -175,11 +175,7 @@ export function QuotationEditor({
       // Always link back to the true original, even if we're revising a revision.
       const trueParentId = initial!.parentId ?? initial!.id;
       const baseNumber = initial!.number.split("/")[0];
-      const { number, revision } = await nextRevisionNumber(
-        user!.uid,
-        trueParentId,
-        baseNumber,
-      );
+      const { number, revision } = await nextRevisionNumber(user!.uid, trueParentId, baseNumber);
       const q: Omit<Quotation, "id"> = {
         ...computed,
         number,
@@ -432,7 +428,6 @@ export function QuotationEditor({
 
       {step === 4 && computed && (
         <div className="space-y-3">
-
           {/* ── Header banner ── */}
           <div className="flex items-center gap-3 rounded-2xl border bg-gradient-to-r from-primary/8 via-primary/4 to-transparent px-5 py-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/12 ring-1 ring-primary/20">
@@ -496,9 +491,7 @@ export function QuotationEditor({
               >
                 {parentQuote.number}
               </Link>
-              <span className="text-xs text-muted-foreground">
-                original · {parentQuote.status}
-              </span>
+              <span className="text-xs text-muted-foreground">original · {parentQuote.status}</span>
             </div>
           )}
 
@@ -534,7 +527,9 @@ export function QuotationEditor({
                 <ReceiptText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <span className="text-sm text-emerald-800 dark:text-emerald-300">
-                {linkedBills.length === 1 ? "Bill created:" : `${linkedBills.length} bills created:`}
+                {linkedBills.length === 1
+                  ? "Bill created:"
+                  : `${linkedBills.length} bills created:`}
               </span>
               {linkedBills.map((b) => (
                 <Link
@@ -657,7 +652,6 @@ export function QuotationEditor({
               </div>
             )}
           </div>
-
         </div>
       )}
     </div>

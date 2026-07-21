@@ -24,7 +24,8 @@ export function recomputeQuotation(
   const grandTotal = round2(taxable + gstAmt);
   const area = round2(
     items.reduce(
-      (s, it) => s + (it.rateMode === "sqft" || it.rateMode === "rft" ? it.measureValue * it.qty : 0),
+      (s, it) =>
+        s + (it.rateMode === "sqft" || it.rateMode === "rft" ? it.measureValue * it.qty : 0),
       0,
     ),
   );
@@ -65,7 +66,8 @@ export function recomputeInvoice(
   const grandTotal = round2(taxable + gstAmt);
   const area = round2(
     items.reduce(
-      (s, it) => s + (it.rateMode === "sqft" || it.rateMode === "rft" ? it.measureValue * it.qty : 0),
+      (s, it) =>
+        s + (it.rateMode === "sqft" || it.rateMode === "rft" ? it.measureValue * it.qty : 0),
       0,
     ),
   );

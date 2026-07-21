@@ -29,8 +29,11 @@ const PAD_BOTTOM_MM = 9; // breathing room kept at the bottom of every page
 // (signatures/stamp) is what silently gets clipped or corrupted first.
 // We use 3000 px as the single-dimension cap (well below 4096) and 9 MP as
 // the area cap so both constraints are satisfied across all common devices.
-const MAX_CANVAS_DIMENSION = 3000;
-const MAX_CANVAS_AREA = 9_000_000; // 9 MP — safe for old + new mobile
+// Each PAGE is captured on its own now (not the whole document at once), so a
+// single canvas is only ~one A4 page — these ceilings comfortably allow full
+// ~300 DPI per page on modern phones without hitting memory limits.
+const MAX_CANVAS_DIMENSION = 4096;
+const MAX_CANVAS_AREA = 11_000_000; // ~11 MP — one A4 page at 300 DPI ≈ 8.6 MP
 
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
   try {
@@ -61,34 +64,30 @@ async function waitForImages(node: HTMLElement): Promise<void> {
   );
 }
 
-/** Fallback for blocks taller than a page: nearest all-white row above `ideal`. */
-function whiteScanCut(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  sy: number,
-  ideal: number,
-): number {
-  const scan = Math.min(Math.floor((ideal - sy) * 0.25), ideal - sy - 10);
-  if (scan <= 0) return ideal;
-  try {
-    const region = ctx.getImageData(0, ideal - scan, width, scan);
-    const data = region.data;
-    for (let r = scan - 1; r >= 0; r--) {
-      let clean = true;
-      const rowStart = r * width * 4;
-      for (let x = 0; x < width; x += 12) {
-        const i = rowStart + x * 4;
-        if (data[i] < 244 || data[i + 1] < 244 || data[i + 2] < 244) {
-          clean = false;
-          break;
-        }
-      }
-      if (clean) return ideal - (scan - 1 - r);
-    }
-  } catch {
-    // tainted canvas — hard cut
-  }
-  return ideal;
+// Per-page crop capture: renders ONLY the given CSS slice of the element.
+// Capturing each page separately (instead of one giant canvas) keeps every
+// canvas well under mobile memory caps, so each page renders at full DPI —
+// this is what makes the output genuinely sharp on phones.
+async function capturePage(
+  el: HTMLElement,
+  yCss: number,
+  hCss: number,
+  scale: number,
+): Promise<HTMLCanvasElement> {
+  return html2canvas(el, {
+    scale,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    windowWidth: RENDER_W,
+    windowHeight: Math.ceil(el.scrollHeight),
+    x: 0,
+    y: yCss,
+    width: RENDER_W,
+    height: Math.ceil(hCss),
+    scrollX: 0,
+    scrollY: 0,
+  });
 }
 
 async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Blob> {
@@ -98,133 +97,130 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     // older browsers — proceed anyway
   }
 
-  const rect = el.getBoundingClientRect();
-  const rw = Math.max(rect.width, 1);
-  // getBoundingClientRect().height can return 0 on mobile Safari for
-  // off-screen fixed elements — the CSS layout engine still assigns the
-  // correct height, but the visual-layer measurement is skipped.
-  // el.scrollHeight is a pure layout value and is always reliable.
-  const rh = Math.max(rect.height, el.scrollHeight, 1);
-  const safeScale = Math.min(
+  // Full A4 page height, in the element's CSS pixels.
+  const PAGE_CSS = RENDER_W * (A4_H / A4_W);
+  const padTopCss = RENDER_W * (PAD_TOP_MM / A4_W);
+  const padBottomCss = RENDER_W * (PAD_BOTTOM_MM / A4_W);
+  const totalCss = Math.max(el.scrollHeight, el.getBoundingClientRect().height, 1);
+
+  const blockTops = blockTopsCss.filter((t) => t > 0).sort((a, b) => a - b);
+  const closingTopCss = blockTops.length > 0 ? blockTops[blockTops.length - 1] : null;
+
+  // Per-PAGE resolution: a single A4 page at SCALE stays well under mobile
+  // canvas ceilings (unlike the whole document at once), so we keep full DPI.
+  const scale = Math.min(
     SCALE,
-    MAX_CANVAS_DIMENSION / rw,
-    MAX_CANVAS_DIMENSION / rh,
-    Math.sqrt(MAX_CANVAS_AREA / (rw * rh)), // total-area cap
+    MAX_CANVAS_DIMENSION / RENDER_W,
+    MAX_CANVAS_DIMENSION / PAGE_CSS,
+    Math.sqrt(MAX_CANVAS_AREA / (RENDER_W * PAGE_CSS)),
   );
-
-  const canvas = await html2canvas(el, {
-    scale: safeScale,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-    windowWidth: RENDER_W,
-    windowHeight: Math.ceil(rh),
-    // Force html2canvas to treat the page as un-scrolled. On mobile the Download
-    // button sits far down the page, so the window is scrolled when capture runs.
-    // Without these, html2canvas offsets the off-screen element by the scroll
-    // amount and DUPLICATES content near the scroll position (the ghost stamp).
-    scrollX: 0,
-    scrollY: 0,
-    onclone: (docClone) => {
-      // The watermark is stamped per-page afterwards — hide the single DOM one.
-      docClone.querySelectorAll<HTMLElement>("[data-watermark]").forEach((n) => {
-        n.style.display = "none";
-      });
-    },
-  });
-
-  const w = canvas.width;
-  const pxPerCss = w / el.getBoundingClientRect().width;
-  const blockTops = blockTopsCss
-    .map((t) => Math.round(t * pxPerCss))
-    .filter((t) => t > 0)
-    .sort((a, b) => a - b);
-
-  const pageHpx = Math.floor((w * A4_H) / A4_W);
-  const padTop = Math.floor((w * PAD_TOP_MM) / A4_W);
-  const padBottom = Math.floor((w * PAD_BOTTOM_MM) / A4_W);
-  const srcCtx = canvas.getContext("2d");
+  const wPx = Math.round(RENDER_W * scale);
+  const pageHpx = Math.round(PAGE_CSS * scale);
 
   const logoUrl = await urlToDataUrl("/logo.png");
   const logoImg = logoUrl ? await loadImage(logoUrl) : null;
-
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
 
   const drawWatermark = (ctx: CanvasRenderingContext2D) => {
     if (logoImg && logoImg.naturalWidth > 0) {
-      const wmW = w * 0.5;
+      const wmW = wPx * 0.5;
       const wmH = (wmW * logoImg.naturalHeight) / logoImg.naturalWidth;
       ctx.globalAlpha = 0.05;
-      ctx.drawImage(logoImg, (w - wmW) / 2, (pageHpx - wmH) / 2, wmW, wmH);
+      ctx.drawImage(logoImg, (wPx - wmW) / 2, (pageHpx - wmH) / 2, wmW, wmH);
       ctx.globalAlpha = 1;
     }
   };
 
-  // Fit-to-page: when the document only *barely* overflows one page, shrink the
-  // whole capture up to 12% so it fits a single page — invisible at ~290 DPI,
-  // and far more professional than a near-empty second page.
-  const cap1 = pageHpx - padBottom;
-  if (canvas.height > cap1 && canvas.height * 0.88 <= cap1) {
-    const s = cap1 / canvas.height;
-    const destW = Math.floor(w * s);
-    const destX = Math.floor((w - destW) / 2);
-    const page = document.createElement("canvas");
-    page.width = w;
-    page.height = pageHpx;
-    const ctx = page.getContext("2d");
-    if (ctx) {
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, w, pageHpx);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(canvas, 0, 0, w, canvas.height, destX, 0, destW, Math.floor(canvas.height * s));
-      drawWatermark(ctx);
-      doc.addImage(page.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
-      return doc.output("blob");
+  const newPageCanvas = () => {
+    const c = document.createElement("canvas");
+    c.width = wPx;
+    c.height = pageHpx;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, wPx, pageHpx);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    return { c, ctx };
+  };
+
+  // ── Single page (incl. fit-to-page for a barely-overflowing document) ──────
+  const cap1Css = PAGE_CSS - padBottomCss;
+  if (totalCss <= cap1Css / 0.88) {
+    const slice = await capturePage(el, 0, totalCss, scale);
+    const { c, ctx } = newPageCanvas();
+    if (totalCss > cap1Css) {
+      // Barely over — scale the whole thing down a hair to fit one page.
+      const s = cap1Css / totalCss;
+      const destW = Math.round(wPx * s);
+      const destH = Math.round(slice.height * s);
+      ctx.drawImage(
+        slice,
+        0,
+        0,
+        slice.width,
+        slice.height,
+        Math.round((wPx - destW) / 2),
+        0,
+        destW,
+        destH,
+      );
+    } else {
+      ctx.drawImage(slice, 0, 0);
     }
+    drawWatermark(ctx);
+    doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, A4_W, A4_H);
+    return doc.output("blob");
   }
 
-  // Multi-page: content flows top-to-bottom continuously. Each page fills with
-  // as many [data-block] sections as fit, and the break always lands ON a block
-  // boundary — so a line, a term, or the signature block is NEVER sliced in
-  // half. No artificial bottom-pinning (that was what left large empty gaps).
-  let sy = 0;
-  let pageIndex = 0;
-  while (sy < canvas.height) {
-    const offsetY = pageIndex === 0 ? 0 : padTop; // continuation pages get a top margin
-    const capacity = pageHpx - offsetY - padBottom;
-    let end = Math.min(sy + capacity, canvas.height);
+  // ── Plan page breaks in CSS, landing only on [data-block] boundaries ───────
+  const pages: { s: number; e: number }[] = [];
+  let s = 0;
+  let idx = 0;
+  while (s < totalCss - 1) {
+    const offTopCss = idx === 0 ? 0 : padTopCss;
+    const capCss = PAGE_CSS - offTopCss - padBottomCss;
+    let e = Math.min(s + capCss, totalCss);
+    if (e < totalCss) {
+      const candidates = blockTops.filter((t) => t > s + 40 && t <= e);
+      if (candidates.length > 0) e = candidates[candidates.length - 1];
+    }
+    pages.push({ s, e });
+    s = e;
+    idx++;
+  }
 
-    if (end < canvas.height) {
-      // Break at the lowest block boundary that still fits this page, so the
-      // page fills up and the cut lands in the white gap between two blocks.
-      const candidates = blockTops.filter((t) => t > sy + 40 && t <= end);
-      if (candidates.length > 0) {
-        end = candidates[candidates.length - 1];
-      } else if (srcCtx) {
-        // A single block taller than a page — cut at the nearest white row so
-        // no text line is sliced through.
-        end = whiteScanCut(srcCtx, w, sy, end);
+  for (let p = 0; p < pages.length; p++) {
+    const { s: startCss, e: endCss } = pages[p];
+    const offTopPx = p === 0 ? 0 : Math.round(padTopCss * scale);
+    const { c, ctx } = newPageCanvas();
+
+    // On the final page, the closing block (thank-you + footer + red rule) is
+    // pinned to the very bottom edge — like a formal contract. This covers both
+    // cases: the closing block sharing the last page with other content, AND
+    // the last page consisting only of the closing block.
+    const isLast = p === pages.length - 1;
+    const closeStartCss = closingTopCss != null ? Math.max(closingTopCss, startCss) : null;
+    const pinClosing = isLast && closeStartCss != null && closeStartCss < endCss - 2;
+
+    if (pinClosing) {
+      const topHcss = closeStartCss! - startCss;
+      let topBottomPx = offTopPx;
+      if (topHcss > 2) {
+        const topSlice = await capturePage(el, startCss, topHcss, scale);
+        ctx.drawImage(topSlice, 0, offTopPx);
+        topBottomPx = offTopPx + topSlice.height;
       }
+      const closeSlice = await capturePage(el, closeStartCss!, endCss - closeStartCss!, scale);
+      const closeY = Math.max(pageHpx - closeSlice.height, topBottomPx);
+      ctx.drawImage(closeSlice, 0, closeY);
+    } else {
+      const slice = await capturePage(el, startCss, endCss - startCss, scale);
+      ctx.drawImage(slice, 0, offTopPx);
     }
 
-    const sliceH = end - sy;
-    const page = document.createElement("canvas");
-    page.width = w;
-    page.height = pageHpx;
-    const ctx = page.getContext("2d");
-    if (!ctx) break;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, pageHpx);
-    ctx.drawImage(canvas, 0, sy, w, sliceH, 0, offsetY, w, sliceH);
-
     drawWatermark(ctx);
-
-    if (pageIndex > 0) doc.addPage();
-    doc.addImage(page.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, A4_W, A4_H);
-
-    sy = end;
-    pageIndex++;
+    if (p > 0) doc.addPage();
+    doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, A4_W, A4_H);
   }
 
   return doc.output("blob");

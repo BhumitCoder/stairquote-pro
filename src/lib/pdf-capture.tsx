@@ -335,37 +335,36 @@ export async function renderPreviewToPdf(element: ReactElement): Promise<Blob> {
     await waitForImages(host);
 
     // ── Fix 1: watermark ────────────────────────────────────────────────────
-    // Hide the DOM watermark NOW (in the live element, before html2canvas
-    // clones it). Relying solely on onclone is fragile — the clone callback
-    // fires after the clone is built but the mutation may not propagate in
-    // time on some mobile WebKit builds. Hiding it here is the reliable path.
-    host.querySelectorAll<HTMLElement>("[data-watermark]").forEach((n) => {
-      n.style.display = "none";
-    });
+    // Remove the DOM watermark element entirely before html2canvas clones the
+    // tree. Using display:none proved unreliable on some mobile WebKit builds;
+    // physically removing the node is bulletproof. The per-page watermark is
+    // drawn separately via drawWatermark() on each canvas page.
+    host.querySelectorAll<HTMLElement>("[data-watermark]").forEach((n) => n.remove());
 
     // ── Fix 2: ContainImage explicit dimensions ─────────────────────────────
-    // html2canvas ignores CSS `max-width` / `max-height` on <img> elements
-    // and renders at natural resolution. ContainImage sets explicit pixel
-    // dimensions via a React state update after onLoad, but that state flush
-    // may not complete before we reach html2canvas (especially on slow mobile
-    // CPUs). We apply the same contain-math directly to the live DOM here so
-    // the clone always sees explicit width/height, not max-width/max-height.
-    host.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
-      if (!img.naturalWidth || !img.naturalHeight) return;
-      if (img.style.width && img.style.height) return; // already set by React
-      const parent = img.parentElement;
-      if (!parent) return;
-      const pw = parent.clientWidth;
-      const ph = parent.clientHeight;
-      if (!pw || !ph) return;
-      const ratio = Math.min(pw / img.naturalWidth, ph / img.naturalHeight);
+    // html2canvas ignores CSS `max-width`/`max-height` and can also ignore
+    // `overflow:hidden` on flex containers, causing stamp images to render at
+    // their full natural resolution and bleed outside the box.
+    //
+    // ContainImage stores the intended box size in data-box-w/data-box-h
+    // attributes so we can compute explicit px dimensions here WITHOUT relying
+    // on clientWidth/clientHeight — those return 0 for off-screen elements on
+    // mobile, which was what made the old approach ineffective.
+    host.querySelectorAll<HTMLElement>("[data-contain-box]").forEach((container) => {
+      const boxW = parseFloat(container.dataset.boxW ?? "0");
+      const boxH = parseFloat(container.dataset.boxH ?? "0");
+      if (!boxW || !boxH) return;
+      const img = container.querySelector<HTMLImageElement>("img");
+      if (!img || !img.naturalWidth || !img.naturalHeight) return;
+      const ratio = Math.min(boxW / img.naturalWidth, boxH / img.naturalHeight);
       img.style.width = `${Math.round(img.naturalWidth * ratio)}px`;
       img.style.height = `${Math.round(img.naturalHeight * ratio)}px`;
       img.style.maxWidth = "";
       img.style.maxHeight = "";
+      img.style.objectFit = ""; // clear any class-based object-fit
     });
 
-    // Let layout settle after the dimension fixes above.
+    // Let React re-render (and any layout recalc) settle after the patches above.
     await new Promise<void>((res) => requestAnimationFrame(() => res()));
 
     const target = host.querySelector<HTMLElement>("[data-pdf-root]");

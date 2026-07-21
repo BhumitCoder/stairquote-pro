@@ -34,7 +34,12 @@ function ContainImage({
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   return (
+    // data-box-w / data-box-h: read by pdf-capture to set explicit img dimensions
+    // without relying on clientWidth/clientHeight (which return 0 off-screen).
     <div
+      data-contain-box
+      data-box-w={boxWidth}
+      data-box-h={boxHeight}
       style={{
         width: boxWidth,
         height: boxHeight,
@@ -447,8 +452,8 @@ export function QuotationPreview({
                   <ContainImage
                     src={settings.company.stampUrl}
                     alt="Company stamp"
-                    boxWidth={120}
-                    boxHeight={90}
+                    boxWidth={110}
+                    boxHeight={80}
                   />
                 </div>
               ) : (

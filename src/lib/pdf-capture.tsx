@@ -64,32 +64,6 @@ async function waitForImages(node: HTMLElement): Promise<void> {
   );
 }
 
-// Per-page crop capture: renders ONLY the given CSS slice of the element.
-// Capturing each page separately (instead of one giant canvas) keeps every
-// canvas well under mobile memory caps, so each page renders at full DPI —
-// this is what makes the output genuinely sharp on phones.
-async function capturePage(
-  el: HTMLElement,
-  yCss: number,
-  hCss: number,
-  scale: number,
-): Promise<HTMLCanvasElement> {
-  return html2canvas(el, {
-    scale,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-    windowWidth: RENDER_W,
-    windowHeight: Math.ceil(el.scrollHeight),
-    x: 0,
-    y: yCss,
-    width: RENDER_W,
-    height: Math.ceil(hCss),
-    scrollX: 0,
-    scrollY: 0,
-  });
-}
-
 async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Blob> {
   try {
     await document.fonts.ready;
@@ -97,25 +71,41 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     // older browsers — proceed anyway
   }
 
-  // Full A4 page height, in the element's CSS pixels.
-  const PAGE_CSS = RENDER_W * (A4_H / A4_W);
-  const padTopCss = RENDER_W * (PAD_TOP_MM / A4_W);
-  const padBottomCss = RENDER_W * (PAD_BOTTOM_MM / A4_W);
   const totalCss = Math.max(el.scrollHeight, el.getBoundingClientRect().height, 1);
 
-  const blockTops = blockTopsCss.filter((t) => t > 0).sort((a, b) => a - b);
-  const closingTopCss = blockTops.length > 0 ? blockTops[blockTops.length - 1] : null;
-
-  // Per-PAGE resolution: a single A4 page at SCALE stays well under mobile
-  // canvas ceilings (unlike the whole document at once), so we keep full DPI.
+  // Capture the WHOLE document as ONE master canvas, then slice pages from it by
+  // exact pixel rows. This is deterministic — every page (and the bottom-pinned
+  // closing block) is drawn from the same pixels, so a stamp/line can NEVER be
+  // duplicated or offset (which multiple separate screenshots risked on mobile).
   const scale = Math.min(
     SCALE,
     MAX_CANVAS_DIMENSION / RENDER_W,
-    MAX_CANVAS_DIMENSION / PAGE_CSS,
-    Math.sqrt(MAX_CANVAS_AREA / (RENDER_W * PAGE_CSS)),
+    MAX_CANVAS_DIMENSION / totalCss,
+    Math.sqrt(MAX_CANVAS_AREA / (RENDER_W * totalCss)),
   );
-  const wPx = Math.round(RENDER_W * scale);
-  const pageHpx = Math.round(PAGE_CSS * scale);
+  const master = await html2canvas(el, {
+    scale,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    windowWidth: RENDER_W,
+    windowHeight: Math.ceil(totalCss),
+    scrollX: 0,
+    scrollY: 0,
+  });
+
+  const wPx = master.width;
+  const pxPerCss = wPx / RENDER_W;
+  const pageHpx = Math.round(wPx * (A4_H / A4_W));
+  const padTopPx = Math.round((PAD_TOP_MM / A4_W) * wPx);
+  const padBottomPx = Math.round((PAD_BOTTOM_MM / A4_W) * wPx);
+  const masterH = master.height;
+
+  const blockTopsPx = blockTopsCss
+    .filter((t) => t > 0)
+    .map((t) => Math.round(t * pxPerCss))
+    .sort((a, b) => a - b);
+  const closingPx = blockTopsPx.length > 0 ? blockTopsPx[blockTopsPx.length - 1] : null;
 
   const logoUrl = await urlToDataUrl("/logo.png");
   const logoImg = logoUrl ? await loadImage(logoUrl) : null;
@@ -143,63 +133,52 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     return { c, ctx };
   };
 
+  // Slice a horizontal band [syPx, syPx+hPx] out of the master onto ctx at dstY.
+  const drawBand = (ctx: CanvasRenderingContext2D, syPx: number, hPx: number, dstY: number) => {
+    if (hPx <= 0) return;
+    ctx.drawImage(master, 0, syPx, wPx, hPx, 0, dstY, wPx, hPx);
+  };
+
   // ── Single page (incl. fit-to-page for a barely-overflowing document) ──────
-  const cap1Css = PAGE_CSS - padBottomCss;
-  if (totalCss <= cap1Css / 0.88) {
+  const cap1Px = pageHpx - padBottomPx;
+  if (masterH <= cap1Px / 0.88) {
     const { c, ctx } = newPageCanvas();
-    if (totalCss > cap1Css) {
-      // Barely over — scale the whole thing down a hair to fill one page; the
-      // closing block ends at the bottom naturally.
-      const slice = await capturePage(el, 0, totalCss, scale);
-      const s = cap1Css / totalCss;
-      const destW = Math.round(wPx * s);
-      const destH = Math.round(slice.height * s);
-      ctx.drawImage(
-        slice,
-        0,
-        0,
-        slice.width,
-        slice.height,
-        Math.round((wPx - destW) / 2),
-        0,
-        destW,
-        destH,
-      );
-    } else if (closingTopCss != null && closingTopCss > 40) {
-      // Comfortably fits: content at the top, and the closing block (signatures
-      // + stamp + thank-you + footer + red rule) pinned to the very bottom edge
-      // (bottom: 0) — the professional letterhead look.
-      const topSlice = await capturePage(el, 0, closingTopCss, scale);
-      ctx.drawImage(topSlice, 0, 0);
-      const closeSlice = await capturePage(el, closingTopCss, totalCss - closingTopCss, scale);
-      const closeY = Math.max(pageHpx - closeSlice.height, topSlice.height);
-      ctx.drawImage(closeSlice, 0, closeY);
+    if (masterH > cap1Px) {
+      // Barely over — scale the whole thing down a hair to fill one page.
+      const sc = cap1Px / masterH;
+      const destW = Math.round(wPx * sc);
+      const destH = Math.round(masterH * sc);
+      ctx.drawImage(master, 0, 0, wPx, masterH, Math.round((wPx - destW) / 2), 0, destW, destH);
+    } else if (closingPx != null && closingPx > 40) {
+      // Content at the top; closing block pinned to the very bottom edge.
+      drawBand(ctx, 0, closingPx, 0);
+      const closeH = masterH - closingPx;
+      drawBand(ctx, closingPx, closeH, Math.max(pageHpx - closeH, closingPx));
     } else {
-      const slice = await capturePage(el, 0, totalCss, scale);
-      ctx.drawImage(slice, 0, 0);
+      drawBand(ctx, 0, masterH, 0);
     }
     drawWatermark(ctx);
     doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, A4_W, A4_H);
     return doc.output("blob");
   }
 
-  // ── Plan page breaks in CSS, landing only on [data-block] boundaries ───────
+  // ── Plan page breaks in master px, landing only on [data-block] boundaries ──
   const pages: { s: number; e: number }[] = [];
   let s = 0;
   let idx = 0;
-  while (s < totalCss - 1) {
-    const offTopCss = idx === 0 ? 0 : padTopCss;
-    const capCss = PAGE_CSS - offTopCss - padBottomCss;
-    let e = Math.min(s + capCss, totalCss);
-    if (e < totalCss) {
-      const candidates = blockTops.filter((t) => t > s + 40 && t <= e);
+  const gap = Math.round(40 * pxPerCss);
+  while (s < masterH - 1) {
+    const offTop = idx === 0 ? 0 : padTopPx;
+    const cap = pageHpx - offTop - padBottomPx;
+    let e = Math.min(s + cap, masterH);
+    if (e < masterH) {
+      const candidates = blockTopsPx.filter((t) => t > s + gap && t <= e);
       if (candidates.length > 0) e = candidates[candidates.length - 1];
     }
-    // Safety: a page break must NEVER land inside the closing block (signatures
-    // + stamp + footer). If it would, snap the break up to the closing block's
-    // top so the whole closing block moves intact to the final page.
-    if (closingTopCss != null && e > closingTopCss && e < totalCss && closingTopCss > s + 40) {
-      e = closingTopCss;
+    // A break must NEVER land inside the closing block — snap up to its top so
+    // the whole closing block moves intact to the final page.
+    if (closingPx != null && e > closingPx && e < masterH && closingPx > s + gap) {
+      e = closingPx;
     }
     pages.push({ s, e });
     s = e;
@@ -207,32 +186,23 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
   }
 
   for (let p = 0; p < pages.length; p++) {
-    const { s: startCss, e: endCss } = pages[p];
-    const offTopPx = p === 0 ? 0 : Math.round(padTopCss * scale);
+    const { s: startPx, e: endPx } = pages[p];
+    const offTop = p === 0 ? 0 : padTopPx;
     const { c, ctx } = newPageCanvas();
 
-    // On the final page, the closing block (thank-you + footer + red rule) is
-    // pinned to the very bottom edge — like a formal contract. This covers both
-    // cases: the closing block sharing the last page with other content, AND
-    // the last page consisting only of the closing block.
     const isLast = p === pages.length - 1;
-    const closeStartCss = closingTopCss != null ? Math.max(closingTopCss, startCss) : null;
-    const pinClosing = isLast && closeStartCss != null && closeStartCss < endCss - 2;
+    const closeStart = closingPx != null ? Math.max(closingPx, startPx) : null;
+    const pinClosing = isLast && closeStart != null && closeStart < endPx - 2;
 
     if (pinClosing) {
-      const topHcss = closeStartCss! - startCss;
-      let topBottomPx = offTopPx;
-      if (topHcss > 2) {
-        const topSlice = await capturePage(el, startCss, topHcss, scale);
-        ctx.drawImage(topSlice, 0, offTopPx);
-        topBottomPx = offTopPx + topSlice.height;
-      }
-      const closeSlice = await capturePage(el, closeStartCss!, endCss - closeStartCss!, scale);
-      const closeY = Math.max(pageHpx - closeSlice.height, topBottomPx);
-      ctx.drawImage(closeSlice, 0, closeY);
+      // Final page: content at the top, closing block pinned to the bottom edge.
+      const topH = closeStart! - startPx;
+      if (topH > 2) drawBand(ctx, startPx, topH, offTop);
+      const closeH = endPx - closeStart!;
+      const closeY = Math.max(pageHpx - closeH, offTop + Math.max(topH, 0));
+      drawBand(ctx, closeStart!, closeH, closeY);
     } else {
-      const slice = await capturePage(el, startCss, endCss - startCss, scale);
-      ctx.drawImage(slice, 0, offTopPx);
+      drawBand(ctx, startPx, endPx - startPx, offTop);
     }
 
     drawWatermark(ctx);

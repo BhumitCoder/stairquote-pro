@@ -64,19 +64,41 @@ async function waitForImages(node: HTMLElement): Promise<void> {
   );
 }
 
-async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Blob> {
+async function captureToPdf(
+  el: HTMLElement,
+  contentBlockTopsCss: number[],
+  closingEl: HTMLElement | null,
+): Promise<Blob> {
   try {
     await document.fonts.ready;
   } catch {
     // older browsers — proceed anyway
   }
 
-  const totalCss = Math.max(el.scrollHeight, el.getBoundingClientRect().height, 1);
+  // ── STEP 1: Capture the closing block (signatures + stamp + footer) on its
+  // OWN, while it is still in the layout — guaranteeing it is whole. ──────────
+  let closingCanvas: HTMLCanvasElement | null = null;
+  if (closingEl) {
+    closingCanvas = await html2canvas(closingEl, {
+      scale: SCALE,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      windowWidth: RENDER_W,
+      scrollX: 0,
+      scrollY: 0,
+    });
+  }
 
-  // Capture the WHOLE document as ONE master canvas, then slice pages from it by
-  // exact pixel rows. This is deterministic — every page (and the bottom-pinned
-  // closing block) is drawn from the same pixels, so a stamp/line can NEVER be
-  // duplicated or offset (which multiple separate screenshots risked on mobile).
+  // ── STEP 2: Hide the closing block, then capture the rest of the document.
+  // Because the closing block is gone from this capture, the content pages
+  // physically CANNOT contain any part of the stamp/signature — so it can never
+  // be cut or duplicated across a page break, on any device. ──────────────────
+  const prevDisplay = closingEl ? closingEl.style.display : "";
+  if (closingEl) closingEl.style.display = "none";
+  void el.offsetHeight; // force reflow so the hidden height is excluded
+
+  const totalCss = Math.max(el.scrollHeight, el.getBoundingClientRect().height, 1);
   const scale = Math.min(
     SCALE,
     MAX_CANVAS_DIMENSION / RENDER_W,
@@ -93,6 +115,7 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     scrollX: 0,
     scrollY: 0,
   });
+  if (closingEl) closingEl.style.display = prevDisplay;
 
   const wPx = master.width;
   const pxPerCss = wPx / RENDER_W;
@@ -101,11 +124,13 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
   const padBottomPx = Math.round((PAD_BOTTOM_MM / A4_W) * wPx);
   const masterH = master.height;
 
-  const blockTopsPx = blockTopsCss
+  // Closing image scaled to the page width, keeping its aspect ratio.
+  const closeH = closingCanvas ? Math.round(closingCanvas.height * (wPx / closingCanvas.width)) : 0;
+
+  const blockTopsPx = contentBlockTopsCss
     .filter((t) => t > 0)
     .map((t) => Math.round(t * pxPerCss))
     .sort((a, b) => a - b);
-  const closingPx = blockTopsPx.length > 0 ? blockTopsPx[blockTopsPx.length - 1] : null;
 
   const logoUrl = await urlToDataUrl("/logo.png");
   const logoImg = logoUrl ? await loadImage(logoUrl) : null;
@@ -133,36 +158,27 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
     return { c, ctx };
   };
 
-  // Slice a horizontal band [syPx, syPx+hPx] out of the master onto ctx at dstY.
-  const drawBand = (ctx: CanvasRenderingContext2D, syPx: number, hPx: number, dstY: number) => {
+  const drawContent = (ctx: CanvasRenderingContext2D, syPx: number, hPx: number, dstY: number) => {
     if (hPx <= 0) return;
     ctx.drawImage(master, 0, syPx, wPx, hPx, 0, dstY, wPx, hPx);
   };
-
-  // ── Single page (incl. fit-to-page for a barely-overflowing document) ──────
-  const cap1Px = pageHpx - padBottomPx;
-  if (masterH <= cap1Px / 0.88) {
-    const { c, ctx } = newPageCanvas();
-    if (masterH > cap1Px) {
-      // Barely over — scale the whole thing down a hair to fill one page.
-      const sc = cap1Px / masterH;
-      const destW = Math.round(wPx * sc);
-      const destH = Math.round(masterH * sc);
-      ctx.drawImage(master, 0, 0, wPx, masterH, Math.round((wPx - destW) / 2), 0, destW, destH);
-    } else if (closingPx != null && closingPx > 40) {
-      // Content at the top; closing block pinned to the very bottom edge.
-      drawBand(ctx, 0, closingPx, 0);
-      const closeH = masterH - closingPx;
-      drawBand(ctx, closingPx, closeH, Math.max(pageHpx - closeH, closingPx));
-    } else {
-      drawBand(ctx, 0, masterH, 0);
+  const drawClosing = (ctx: CanvasRenderingContext2D, dstY: number) => {
+    if (closingCanvas) {
+      ctx.drawImage(
+        closingCanvas,
+        0,
+        0,
+        closingCanvas.width,
+        closingCanvas.height,
+        0,
+        dstY,
+        wPx,
+        closeH,
+      );
     }
-    drawWatermark(ctx);
-    doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, A4_W, A4_H);
-    return doc.output("blob");
-  }
+  };
 
-  // ── Plan page breaks in master px, landing only on [data-block] boundaries ──
+  // ── Plan content page breaks, landing only on [data-block] boundaries ──────
   const pages: { s: number; e: number }[] = [];
   let s = 0;
   let idx = 0;
@@ -175,38 +191,44 @@ async function captureToPdf(el: HTMLElement, blockTopsCss: number[]): Promise<Bl
       const candidates = blockTopsPx.filter((t) => t > s + gap && t <= e);
       if (candidates.length > 0) e = candidates[candidates.length - 1];
     }
-    // A break must NEVER land inside the closing block — snap up to its top so
-    // the whole closing block moves intact to the final page.
-    if (closingPx != null && e > closingPx && e < masterH && closingPx > s + gap) {
-      e = closingPx;
-    }
     pages.push({ s, e });
     s = e;
     idx++;
   }
+  if (pages.length === 0) pages.push({ s: 0, e: masterH });
+
+  // Can the closing block share the last content page (pinned to the bottom)?
+  const last = pages[pages.length - 1];
+  const lastOffTop = pages.length === 1 ? 0 : padTopPx;
+  const lastContentH = last.e - last.s;
+  const closingFitsLast = lastOffTop + lastContentH + 24 + closeH <= pageHpx;
 
   for (let p = 0; p < pages.length; p++) {
     const { s: startPx, e: endPx } = pages[p];
     const offTop = p === 0 ? 0 : padTopPx;
+    const isLastContent = p === pages.length - 1;
     const { c, ctx } = newPageCanvas();
+    drawContent(ctx, startPx, endPx - startPx, offTop);
 
-    const isLast = p === pages.length - 1;
-    const closeStart = closingPx != null ? Math.max(closingPx, startPx) : null;
-    const pinClosing = isLast && closeStart != null && closeStart < endPx - 2;
-
-    if (pinClosing) {
-      // Final page: content at the top, closing block pinned to the bottom edge.
-      const topH = closeStart! - startPx;
-      if (topH > 2) drawBand(ctx, startPx, topH, offTop);
-      const closeH = endPx - closeStart!;
-      const closeY = Math.max(pageHpx - closeH, offTop + Math.max(topH, 0));
-      drawBand(ctx, closeStart!, closeH, closeY);
-    } else {
-      drawBand(ctx, startPx, endPx - startPx, offTop);
+    // Fit-to-page: only content, only one page, and it slightly overflows → the
+    // single-page path never reaches here (handled by scale). For the normal
+    // path, pin the closing block to the bottom of the last content page if it
+    // fits; otherwise it goes on its own final page.
+    if (isLastContent && closingCanvas && closingFitsLast) {
+      drawClosing(ctx, pageHpx - closeH);
     }
-
     drawWatermark(ctx);
     if (p > 0) doc.addPage();
+    doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, A4_W, A4_H);
+  }
+
+  // Closing block didn't fit on the last content page → its own final page,
+  // pinned to the bottom.
+  if (closingCanvas && !closingFitsLast) {
+    const { c, ctx } = newPageCanvas();
+    drawClosing(ctx, pageHpx - closeH);
+    drawWatermark(ctx);
+    doc.addPage();
     doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, A4_W, A4_H);
   }
 
@@ -290,13 +312,15 @@ export async function renderPreviewToPdf(element: ReactElement): Promise<Blob> {
     const target = host.querySelector<HTMLElement>("[data-pdf-root]");
     if (!target) throw new Error("Preview failed to render");
 
-    // Measure section boundaries (CSS px, relative to the captured root).
+    // Content section boundaries (CSS px, relative to root) — excludes the
+    // closing block, which is captured separately and pinned to the bottom.
     const rootTop = target.getBoundingClientRect().top;
     const blockTops = Array.from(target.querySelectorAll<HTMLElement>("[data-block]")).map(
       (b) => b.getBoundingClientRect().top - rootTop,
     );
+    const closingEl = target.querySelector<HTMLElement>("[data-closing]");
 
-    return await captureToPdf(target, blockTops);
+    return await captureToPdf(target, blockTops, closingEl);
   } finally {
     root.unmount();
     host.remove();

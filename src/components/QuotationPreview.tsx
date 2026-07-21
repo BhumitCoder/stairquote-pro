@@ -433,8 +433,9 @@ export function QuotationPreview({
         </div>
       )}
 
-      {/* ── Signatures + thank-you + footer — one unbreakable block ── */}
-      <div data-block>
+      {/* ── Signatures + thank-you + footer — captured separately & pinned to
+           the bottom of the last page, so it can never be split or cut ── */}
+      <div data-closing>
         <div className="relative z-10 px-8 pt-8 sm:px-10">
           <div className="flex items-end justify-between gap-12 text-[11px]">
             {/* Customer side — same width as the company side, balanced */}
